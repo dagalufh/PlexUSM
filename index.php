@@ -9,7 +9,6 @@ session_start();
 // Prettify the code.
 // Verify input from users.
 
-// Test..
 /**
  * Changelog
  * V0.2
