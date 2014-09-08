@@ -8,7 +8,10 @@ session_start();
 // Delete Subtitles - Done
 // Prettify the code.
 // Verify input from users.
+<<<<<<< HEAD
 // change 3
+=======
+>>>>>>> parent of b33d895... Comment Changes
 
 /**
  * Changelog
