@@ -1,15 +1,6 @@
 <?php
 session_start();
 /** Created by Mikael Aspehed **/
-// Assumptions: All movies/shows are in a own subfolder.
-// To be added:
-// View subtitle, open a new window and read it. - Done
-// Upload to Local folder - Not top of the list....
-// Delete Subtitles - Done
-// Prettify the code.
-// Verify input from users.
-// change 3
-
 /**
  * Changelog
  * V0.2
