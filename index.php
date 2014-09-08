@@ -8,7 +8,7 @@ session_start();
 // Prettify the code.
 // Verify input from users.
 
-
+// Test..
 /**
  * Changelog
  * V0.2
@@ -395,7 +395,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
 					 			}
 					 		}
 				 	echo "</form>";
-					echo "<tr><td class='hidden'>&nbsp;</td></tr>";
+					echo "<tr><td class='hidden'> </td></tr>";
 				}
 			}
 		}
