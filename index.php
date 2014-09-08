@@ -8,6 +8,7 @@ session_start();
 // Delete Subtitles - Done
 // Prettify the code.
 // Verify input from users.
+// testing automatic update to the server.
 
 /**
  * Changelog
