@@ -1,5 +1,6 @@
 <?php
 session_start();
+/** Created by Mikael Aspehed **/
 // Assumptions: All movies/shows are in a own subfolder.
 // To be added:
 // View subtitle, open a new window and read it. - Done
