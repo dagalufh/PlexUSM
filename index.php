@@ -1,6 +1,14 @@
 <?php
 session_start();
-/** Created by Mikael Aspehed **/
+// Assumptions: All movies/shows are in a own subfolder.
+// To be added:
+// View subtitle, open a new window and read it. - Done
+// Upload to Local folder - Not top of the list....
+// Delete Subtitles - Done
+// Prettify the code.
+// Verify input from users.
+
+
 /**
  * Changelog
  * V0.2
@@ -305,15 +313,14 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
 			     * Get all the subtitles located in the Plex Media Server AppData folder and present them.
 			     */
 			    if(file_exists($PathToPlexMediaFolder.$UpperDir."/".$LowerDir) === true) {
-					$SubtitlesInDirectory = ListDir($PathToPlexMediaFolder.$UpperDir."/".$LowerDir . "/Contents",5);	
+					$SubtitlesInDirectory = ListDir($PathToPlexMediaFolder.$UpperDir."/".$LowerDir . "/Contents",5);
+					
 					foreach($SubtitlesInDirectory as $CurrentSubtitle) {
 						
 							if( (strpos($CurrentSubtitle,".srt") !== false) or (strpos($CurrentSubtitle,".ass") !== false) or (strpos($CurrentSubtitle,".ssa") !== false) or (strpos($CurrentSubtitle,".smi") !== false) ) {
 								$Filename = SepFilename($CurrentSubtitle);
 								$Filename[0] = explode("/",$Filename[0]);
-								if(stripos($Filename[1],$VideoNameWithoutEnding) !== false) {
-									$CurrentVideo->setNewSubtitle(new Subtitle($Filename[1], $Filename[0][count($Filename[0])-2], $CurrentSubtitle, "Agents"));
-								}
+								$CurrentVideo->setNewSubtitle(new Subtitle($Filename[1], $Filename[0][count($Filename[0])-2], $CurrentSubtitle, "Agents"));
 							}
 						
 					}
@@ -325,7 +332,6 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
 				 * Check for subtitles ending with .srt .ass .ssa .smi
 				 */
 				if($_SESSION['Option_HideLocal']['set'] === false) { 
-				//	$Folder = SepFilename(preg_replace("/\\\\/i", "/", $row_hash['file']));
 					if(file_exists($Folder[0]) === true) {
 						$var_Local = ListDir($Folder[0],1);		
 						foreach($var_Local as $CurrentSubtitle) {
@@ -387,7 +393,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
 					 			}
 					 		}
 				 	echo "</form>";
-					echo "<tr><td class='hidden'> </td></tr>";
+					echo "<tr><td class='hidden'>&nbsp;</td></tr>";
 				}
 			}
 		}
