@@ -9,5 +9,6 @@ foreach ($_POST['Subtitle'] as $Subtitle) {
 // After work is done, reload the original window.
 ?>
 <script>
+
 	window.parent.location = document.referrer;
 </script>
