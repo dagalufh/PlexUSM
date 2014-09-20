@@ -1,16 +1,20 @@
 <?php
 session_start();
-// Assumptions: All movies/shows are in a own subfolder.
-// To be added:
-// View subtitle, open a new window and read it. - Done
-// Upload to Local folder - Not top of the list....
-// Delete Subtitles - Done
-// Prettify the code.
-// Verify input from users.
-
-
 /**
+ * Thought:
+ * Create a class - Shows, Subclass - Season - Episodes?
+ *
+ *
  * Changelog
+ * V0.4
+ * Completly moved away from database. Now uses the webapi.
+ * Recommends to use devtool.bundle created by dane22 as that allows the script to self figure out the path to your plex media/localhost folder where agents store subtitles.
+ * Added options to hide integrated subtitles.
+ * Added tags that shows what subtitles are selected in the plex interface, so you know which subtitle to remove.
+ * 
+ * V.03
+ * Added Settings.php
+ *
  * V0.2
  * Divided code, working part and display part. For easier maintance and reading.
  * Added search function - can search for episodes or shows/movies. Only in the right Library. Not cross-library search.
@@ -29,20 +33,24 @@ session_start();
 include("ListDir.php");
 include("classes.php");
 include("settings.php");
+include("functions.php");
+$FolderCheck = CheckSettings();
 
-$db = new SQLite3($PathToPlexDatabase);
 /**
  * Define some variables used.
  */
- $ArrayVideos = array();
- $showID = false;
- $Searchstring = "";
- $showID_additionalquery = "parent_id is null";
- $MenuItem = "";
- $CurrentLibraryID = false;
- $CurrentLibraryName = "";
- $ErrorOccured = false;
- 
+$ArrayVideos = array();
+$showID = false;
+$Searchstring = "";
+$showID_additionalquery = "parent_id is null";
+$MenuItem = "";
+$CurrentLibraryID = false;
+$CurrentLibraryName = "";
+$ErrorOccured = false;
+$AdditionalLink_ShowKey = "";
+$AdditionalLink_ParentKey = "";
+$AdditionalLink_Searchstring = "";
+
 /** 
  * Define Options and check if a user has changed them.
  */
@@ -53,8 +61,12 @@ if(!isset($_SESSION['Option_HideLocal']['set'])) {
 	$_SESSION['Option_MultipleSubtitlesOnly']['checked'] = "";
 	$_SESSION['Option_HideEmpty']['set'] = false;
 	$_SESSION['Option_HideEmpty']['checked'] = "";		
-	$_SESSION['Option_HideID']['set'] = false;
+	$_SESSION['Option_HideID']['set'] = true;
 	$_SESSION['Option_HideID']['checked'] = "";	
+	$_SESSION['Option_ItemsPerPage']['value'] = $ItemsPerPage;	
+	$_SESSION['Option_HideIntegrated']['set'] = false;
+	$_SESSION['Option_HideIntegrated']['checked'] = "";		
+
 }
 
 if(isset($_POST['SaveOptions'])) {
@@ -65,7 +77,7 @@ if(isset($_POST['SaveOptions'])) {
 		$_SESSION['Option_MultipleSubtitlesOnly']['set'] = false;
 		$_SESSION['Option_MultipleSubtitlesOnly']['checked'] = "";		
 	}
-	
+
 	if(isset($_POST['HideLocal'])) {
 		$_SESSION['Option_HideLocal']['set'] = true;
 		$_SESSION['Option_HideLocal']['checked'] = "checked";
@@ -73,7 +85,7 @@ if(isset($_POST['SaveOptions'])) {
 		$_SESSION['Option_HideLocal']['set'] = false;
 		$_SESSION['Option_HideLocal']['checked'] = "";		
 	}
-	
+
 	if(isset($_POST['HideEmpty'])) {
 		$_SESSION['Option_HideEmpty']['set'] = true;
 		$_SESSION['Option_HideEmpty']['checked'] = "checked";
@@ -81,7 +93,7 @@ if(isset($_POST['SaveOptions'])) {
 		$_SESSION['Option_HideEmpty']['set'] = false;
 		$_SESSION['Option_HideEmpty']['checked'] = "";		
 	}
-	
+
 	if(isset($_POST['HideID'])) {
 		$_SESSION['Option_HideID']['set'] = true;
 		$_SESSION['Option_HideID']['checked'] = "checked";
@@ -89,56 +101,229 @@ if(isset($_POST['SaveOptions'])) {
 		$_SESSION['Option_HideID']['set'] = false;
 		$_SESSION['Option_HideID']['checked'] = "";		
 	}	
+
+	if(isset($_POST['HideIntegrated'])) {
+		$_SESSION['Option_HideIntegrated']['set'] = true;
+		$_SESSION['Option_HideIntegrated']['checked'] = "checked";
+	} else {
+		$_SESSION['Option_HideIntegrated']['set'] = false;
+		$_SESSION['Option_HideIntegrated']['checked'] = "";		
+	}
+
+	if(isset($_POST['ItemsPerPage']) and ($_POST['ItemsPerPage']>0)) {
+
+		$_SESSION['Option_ItemsPerPage']['value'] = $_POST['ItemsPerPage'];
+	} else {
+		$_SESSION['Option_ItemsPerPage']['value'] = $ItemsPerPage;
+	}	
 }
 
 /**
  * Verify user inputs 
  */
- if (isset($_GET['libraryID'])) {
-	 if (is_numeric($_GET['libraryID']) === false) {
-	 	$ErrorOccured = true;
-	 } else {
-	 	$CurrentLibraryID = $db->escapeString($_GET['libraryID']);
-	 }
- }
- 
- if (isset($_GET['startLimit'])) { 
-	 if (is_numeric($_GET['startLimit']) === false) {
-	 	$ErrorOccured = true;
-	 } else {
-	 	$startLimit = $db->escapeString($_GET['startLimit']);
-	 }
- }
- 
- if(isset($_POST['Search'])) {
-	 	$Searchstring = $db->escapeString($_POST['searchCriteria']);
- }
+if (isset($_GET['libraryID'])) {
+	if (is_numeric($_GET['libraryID']) === false) {
+		$ErrorOccured = true;
+	} else {
+		$CurrentLibraryID = $_GET['libraryID'];
+	}
+}
 
- if ( (isset($_GET['showID'])) and (is_numeric($_GET['showID']) === false)) {
- 	$ErrorOccured = true;
- } elseif(isset($_GET['showID'])) {
- 	$showID = $db->escapeString($_GET['showID']);
- 	$showID_additionalquery = "parent_id='".$showID."'";
- }
+if (isset($_GET['startLimit'])) { 
+	if (is_numeric($_GET['startLimit']) === false) {
+		$ErrorOccured = true;
+	} else {
+		$startLimit = $_GET['startLimit'];
+	}
+}
+
+if(isset($_GET['searchCriteria'])) {
+	$Searchstring = $_GET['searchCriteria'];
+	$AdditionalLink_Searchstring = "&searchCriteria=" . $Searchstring;
+}
+
+if(isset($_GET['ShowKey'])) {
+	$ShowKey= $_GET['ShowKey'];
+	//$showID_additionalquery = "parent_id='".$showID."'";
+	$AdditionalLink_ShowKey = "&ShowKey=".$_GET['ShowKey'];
+}
+
+if( (isset($_GET['ParentKey'])) and (strlen($_GET['ParentKey'])>18) ) {
+	$ParentKey= $_GET['ParentKey'];
+	$AdditionalLink_ParentKey = "&ParentKey=".$_GET['ParentKey'];
+
+}
+
+
+/**
+ *
+ */
+if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
+
+	if( (isset($ShowKey)) and (!isset($ParentKey)) )  {
+		get_show_seasons($ShowKey);	
+	} elseif( (isset($ShowKey)) and (isset($ParentKey)) ) {
+		get_show_episodes($ShowKey);
+	} else {
+
+		/** For the current section, list all the movies */
+		$xmlsub = simplexml_load_file($Server . '/library/sections/'.$CurrentLibraryID.'/all');
+		foreach($xmlsub as $xmlrowsub) {	
+			$AddVideo = true;
+
+			$xmlsub2 = simplexml_load_file($Server.$xmlrowsub['key'].'/tree');
+			if ($xmlrowsub['type'] == "show") {
+				/**
+				 * If it is a show, we don't need to search for subtitles.
+				 */
+				if(strlen($Searchstring)>3){
+					/**
+				 * If it is a show, we don't need to search for subtitles.
+				 */
+
+					$CurrentVideo = new Video($xmlrowsub['key'],$xmlrowsub['title']);
+					$CurrentVideo->setLibraryID($CurrentLibraryID);
+					$CurrentVideo->setType($xmlrowsub['type']);
+					$CurrentVideo->setRatingKey($xmlrowsub['ratingKey']);
+					$CurrentVideo->setSeasonIndex('0');
+					$CurrentVideo->setEpisodeIndex('0');
+					$CurrentVideo->setActiveSubtitle(0);
+					$MatchingEpisodes = false;
+
+					$SeasonXML = simplexml_load_file($Server . $CurrentVideo->getID() . '/all');
+					foreach($SeasonXML as $Season) {
+						if(isset($Season->attributes()->index) !== false) {
+							$MatchingEpisodes_Temp = get_show_episodes($Season->attributes()->key,$Season->attributes(),$CurrentVideo, $Searchstring);
+							if( ($MatchingEpisodes === false) and ($MatchingEpisodes_Temp) ) {
+								$MatchingEpisodes = true;
+							}
+						}
+
+					}
+
+					if( ($MatchingEpisodes) or (stripos($CurrentVideo->getTitle(),$Searchstring) !== false) )  {
+						$ArrayVideos[] = $CurrentVideo;	
+					}					
+
+				} else {
+					$CurrentVideo = new Video($xmlrowsub['key'],$xmlrowsub['title']);
+					$CurrentVideo->setLibraryID($_GET['libraryID']);
+					$CurrentVideo->setType($xmlrowsub['type']);
+					$CurrentVideo->setActiveSubtitle(0);
+					$ArrayVideos[] = $CurrentVideo;	
+				}
+			} else {
+				/**
+				 * Movies can have subtitles, search for them.
+				 */
+				foreach($xmlsub2 as $xmlrowsub2) {
+
+					$CurrentMediaPart= $xmlrowsub2->MediaItem->MediaPart;
+					$CurrentVideo = new Video($xmlrowsub2->attributes()->id,$xmlrowsub2->attributes()->title);
+					//print_r($xmlrowsub2);
+					//echo "<br><br>";
+					/**
+					 * Check if we have a searchstring, and if so, check if the current title matches it.
+					 */
+					if(strlen($Searchstring)>3){
+						if(stripos($CurrentVideo->getTitle(),$Searchstring) === false) {
+							continue;
+						}
+					}
+
+					$ActiveSubtitleXML = simplexml_load_file($Server.$xmlrowsub['key']);
+					foreach($ActiveSubtitleXML as $ActiveSubtitle) { 
+						$Streams = $ActiveSubtitle->Media->Part->Stream;
+						foreach($Streams as $ActiveSubtitle) {
+							if( ($ActiveSubtitle->attributes()->streamType == 3) and (isset($ActiveSubtitle->attributes()->selected)) ) {
+								$CurrentVideo->setActiveSubtitle($ActiveSubtitle->attributes()->id);
+							}
+						}	
+					}
+
+
+					$CurrentVideo->setLibraryID($_GET['libraryID']);
+					$CurrentVideo->setType($xmlrowsub['type']);
+					$CurrentVideo->setEpisodeIndex(0);
+
+					$CurrentVideo->setHash($CurrentMediaPart->attributes()->hash);
+					$CurrentVideo->setPath($CurrentMediaPart->attributes()->file);
+
+					foreach($CurrentMediaPart->MediaStream as $subtitle) {
+						if($subtitle->attributes()->type == 3) {
+
+							// Filter out VOBSUB by checking that there is a url connected to the subtitle.
+							$Language = "-";
+							if(strlen($subtitle->attributes()->language)>0) {
+								$Language = $subtitle->attributes()->language;
+							}
+							
+							if(isset($subtitle->attributes()->url)) {
+								$LocalSubtitle = false;
+								$Folder = SepFilename(preg_replace("/\\\\/i", "/", $subtitle->attributes()->url));
+
+								// Subtitles - All of them
+								
+								if(strpos($Folder[0],"media://")!==false) {
+									$Folder[0] = $PathToPlexMediaFolder . substr($Folder[0],8);
+								} else {
+									$LocalSubtitle = true;
+								}
+								if($_SESSION['Option_HideLocal']['set'] === false) { 
+
+									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $subtitle->attributes()->codec));
+								} else {
+									if($LocalSubtitle === false) {
+										$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $subtitle->attributes()->codec));
+									}
+								}
+
+							} else {
+								if($_SESSION['Option_HideIntegrated']['set']  === false) {
+									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, "Integrated subtitle", $Language,  false, $subtitle->attributes()->codec));	
+								}
+							}
+						}
+					}
+
+
+					foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
+						if(($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) and (count($SubtitleLanguageArray)<2)) {
+							$AddVideo = false;	
+						}
+					}
+
+					if(($_SESSION['Option_HideEmpty']['set'] === true) and (count($CurrentVideo->getSubtitles())<1) ) {
+						$AddVideo = false;
+					}
+
+					if($AddVideo) {
+						$ArrayVideos[] = $CurrentVideo;	
+					}
+
+				}
+			}
+		}
+
+	}	
+	usort($ArrayVideos,"SortVideos");
+}
 
 /**
  * Build the menu to be shown at the top
  */	 
 if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
-
-	
-	$count_result = $db->query("SELECT count(id) from metadata_items where ". $showID_additionalquery ." and library_section_id='".$CurrentLibraryID."'");
-	$count = $count_result->fetchArray();
+	$count = count($ArrayVideos);
 	$PageNr = 1;
-	if($count[0]>50) {
-		for ($i=0;$i<$count[0];$i=$i+50) {
+	if($count>$_SESSION['Option_ItemsPerPage']['value']) {
+		for ($i=0;$i<$count;$i=$i+$_SESSION['Option_ItemsPerPage']['value']) {
 			if($i==0) {
 				$MenuItem .= "Pages: ";
 			}
 			if($i == $startLimit) {
-				$MenuItem .= "<a href='index.php?libraryID=".$CurrentLibraryID."&startLimit=".$i."'><b>".$PageNr . "</b></a> ";
+				$MenuItem .= "<a href='index.php?libraryID=".$CurrentLibraryID."&startLimit=".$i.$AdditionalLink_ShowKey.$AdditionalLink_ParentKey.$AdditionalLink_Searchstring."'>[".$PageNr . "]</a> ";
 			} else {
-				$MenuItem .= "<a href='index.php?libraryID=".$CurrentLibraryID."&startLimit=".$i."'>".$PageNr . "</a> ";
+				$MenuItem .= "<a href='index.php?libraryID=".$CurrentLibraryID."&startLimit=".$i.$AdditionalLink_ShowKey.$AdditionalLink_ParentKey.$AdditionalLink_Searchstring."'>".$PageNr . "</a> ";
 			}
 			$PageNr++;
 		}
@@ -149,258 +334,201 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
 ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html>
-<head>
-	<title>Plex Unofficial Subtitle Manager</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<link rel="stylesheet" type="text/css" href="style.css">
-	<script>
-		function confirmSubmit(formname, option)
-		{
-			var agree=confirm("Are you sure you wish to delete the selected subtitle(s)?");
-			if (agree) {
-				document.getElementById(formname).action = 'delete.php';
-			    document.getElementById(formname).submit();
-			} else {
-			    return false ;
+	<head>
+		<title>Plex Unofficial Subtitle Manager</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<link rel="stylesheet" type="text/css" href="style.css">
+		<script>
+			function confirmSubmit(formname, option)
+			{
+				var agree=confirm("Are you sure you wish to delete the selected subtitle(s)?");
+				if (agree) {
+					document.getElementById(formname).action = 'delete.php';
+					document.getElementById(formname).submit();
+				} else {
+					return false ;
+				}
 			}
-		}
-	</script>
-</head>
-<body>
-<div id="Box">
-	<div id="MenuBar" class="headline"><a href='index.php'>Home</a></div><div id="PageBar" class="headline"><?php echo $MenuItem?></div>
-	<div id="MenuBox">
-	<?php
-		/**
-		 * Get the libraries that are in the database and present them to the user.
-		 */ 
-		$results = $db->query('SELECT id, name FROM library_sections order by name');
-		echo "<table cellspacing=0 cellpadding=0 style='width: 100%'><tr class='headline'>";
-		if($_SESSION['Option_HideID']['set'] === false) {
-				echo "<td>ID</td>";
-			}	
-		echo "<td>Title</td></tr>";
-		while ($row = $results->fetchArray()) {	
-			$LibraryName = $row['name'];
-			if($row['id'] == $CurrentLibraryID) {
-				$CurrentLibraryName = $row['name'];
-				$LibraryName = "<b>" . $row['name'] . "</b>";
-			}
-			echo "<tr class='hovering'>";
-			if($_SESSION['Option_HideID']['set'] === false) {
-				echo "<td class='mainText'>".$row['id']."</td>";
-			}
-			echo "<td class='mainText'><a href='?libraryID=".$row['id']."&startLimit=0'>".$LibraryName."</a></td></tr>";
-		}
-		echo "</table>";
-		
-		if($CurrentLibraryID !== false) {
-			echo "<br>";
-			echo "<form name='searchForm' method='post' action=''>";
-			echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-			echo "<tr class='headline'><td>Search: ".$CurrentLibraryName."</td></tr>";
-			echo "<tr><td class='mainText'>Enter title to search for:</td></tr>";
-			echo "<tr><td class='mainText'><input type='text' name='searchCriteria' value='".$Searchstring."'></td></tr>";
-			echo "<tr><td class='mainText'><input type='submit' name='Search' value='Search'></td></tr>";
-			echo "</table>";
-			echo "</form>";
-		}
-		echo "<br>";
-		echo "<form name='optionsForm' method='post' action=''>";
-		echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-		echo "<tr class='headline'><td>Options</td></tr>";
-		echo "<tr><td class='mainText'><input type='checkbox' name='HideLocal' ".$_SESSION['Option_HideLocal']['checked'].">Hide local subtitles</td></tr>";
-		echo "<tr><td class='mainText'><input type='checkbox' name='HideEmpty' ".$_SESSION['Option_HideEmpty']['checked'].">Hide videos without subtitles</td></tr>";	
-		echo "<tr><td class='mainText'><input type='checkbox' name='HideID' ".$_SESSION['Option_HideID']['checked'].">Hide IDs</td></tr>";	
-		echo "<tr><td class='mainText'><input type='checkbox' name='OnlyMultiple' ".$_SESSION['Option_MultipleSubtitlesOnly']['checked'].">Show only multiple subtitles/language</td></tr>";
-		echo "<tr><td class='mainText'><input type='submit' name='SaveOptions' value='Save'></td></tr>";
-		echo "</table>";
-		echo "</form>";
-		echo "<br>";
-		echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-		echo "<tr class='headline'><td>Recommended usage</td></tr>";
-		echo "<tr><td class='mainText'>";
-		echo "1. Disable the subtitles agents<br>";
-		echo "2. Remove the once you want via this script.<br>";
-		echo "3. Go to the movies you altered and update them, searching for new metadata.<br>";
-		echo "4. Re-enable subtitle agents if you want. You should now have a cleaner subtitle list.<br><br>";
-		echo "</td></tr>";
-		echo "<tr class='headline'><td>Information & Features</td></tr>";		
-		echo "<tr><td class='mainText'>";
-		echo "This is an unofficial manager for subtitles.<br>";
-		echo "<b>Usage is on your own risk!</b><br><br>";
-		echo "Current features:<br>";
-		echo "<ul>";
-		echo "<li>List all subtitles for a movie/tv show in your library. Both local (next to the movie in it's folder or one subfolder) and in the c:\users appdata folder.</li>";
-		echo "<li>View the subtitle and see it's contents to determine what to delete.</li>";
-		echo "<li>Delete selected subtitle from the harddrive.</li>";
-		echo "<li>Search for videos.</li>";
-		echo "<li>Options for output.</li>";
-		echo "</ul>";
-		echo "Planed features:<br>";
-		echo "<ul>";
-		echo "<li>Upload subtitles to the folder where the video file is stored.</li>";
-		echo "</ul>";
-		echo "</td></tr>";
-		echo "</table>";
-	?>
-	</div>	
-	<div id="MainBox">
-	<?php
-	if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
-		
-		/**
-		 * Fetch data from the metadata_items table based on selected library and limit.
-		 */ 
-		/**
-		 * Check if the user has done a search and create a resource from the database based on it.
-		 */ 
-		 if(isset($_POST['Search']) and (strlen($Searchstring)>1) ) {
-		 	// Always fetch everything that has no parrent. And then, fetch them as we find them along the way.
-		 	$results = $db->query('SELECT id, title, parent_id, [index] FROM metadata_items where title LIKE "%'.$Searchstring.'%"  and library_section_id='.$CurrentLibraryID.' order by title, [index] limit '.$startLimit.',50');	
-		 } else {
-		 	$results = $db->query('SELECT id, title, parent_id, [index] FROM metadata_items where library_section_id='.$CurrentLibraryID.' and '. $showID_additionalquery .' order by title, [index] limit '.$startLimit.',50');	
-		 }	 	
-		
-		/* Recursive function? */
-		while ($row = $results->fetchArray()) {			
-	
-		 
-			/**
-			 * Create a Video object for each video;
-			 */
-			if(strlen($row['title'])<1) {
-				$row['title'] =  "Season " . $row['index'];	
-			} 
-			$CurrentVideo = new Video($row['id'],$row['title']);
-			$CurrentVideo->setLibraryID($CurrentLibraryID);
-			$CurrentVideo->setParentID($row['parent_id']);
-			
-			$result_count_children = $db->query("SELECT count(id) from metadata_items where parent_id='".$CurrentVideo->getID()."'");
-			$count = $result_count_children->fetchArray();
-			$CurrentVideo->setNumberOfChilds($count[0]);
-			
-			$results_media_items = $db->query('SELECT id FROM media_items where metadata_item_id='.$CurrentVideo->getID());
-			$media_items = $results_media_items->fetchArray();
-			
-			/** Fetch and prepare path fo subtitle. */
-			$results_hash = $db->query('SELECT hash,file,media_item_id FROM media_parts where media_item_id="'.$media_items['id'].'"');
-			$row_hash = $results_hash->fetchArray();
-			
-			$CurrentVideo->setHash($row_hash['hash']);
-			$CurrentVideo->setPath($row_hash['file']);
-			$Folder = SepFilename(preg_replace("/\\\\/i", "/", $row_hash['file']));
-			$VideoNameWithoutEnding = substr($Folder[1],0,strrpos($Folder[1],"."));
-				
-			$UpperDir = substr($CurrentVideo->getHash(),0,1);
-		   	$LowerDir = substr($CurrentVideo->getHash(),1).".bundle";
-		
-		
-			/**
-			 * Check if this is infact a tv-show, then don't list subtitles.
-			 */ 
-			 $results_library_type = $db->query('select section_type from library_sections where id='.$CurrentLibraryID);
-			 $library_type = $results_library_type->fetchArray();
-			 $CurrentVideo->setLibraryType($library_type['section_type']);
-			 /**
-			  * 1 = Movie, 2 = TV-Show
-			  */ 
-			 if((!($library_type['section_type'] == 2)) or ($CurrentVideo->getParentID() == $showID)){
-				 /**
-			     * Get all the subtitles located in the Plex Media Server AppData folder and present them.
-			     */
-			    if(file_exists($PathToPlexMediaFolder.$UpperDir."/".$LowerDir) === true) {
-					$SubtitlesInDirectory = ListDir($PathToPlexMediaFolder.$UpperDir."/".$LowerDir . "/Contents",5);
-					
-					foreach($SubtitlesInDirectory as $CurrentSubtitle) {
-						
-							if( (strpos($CurrentSubtitle,".srt") !== false) or (strpos($CurrentSubtitle,".ass") !== false) or (strpos($CurrentSubtitle,".ssa") !== false) or (strpos($CurrentSubtitle,".smi") !== false) ) {
-								$Filename = SepFilename($CurrentSubtitle);
-								$Filename[0] = explode("/",$Filename[0]);
-								$CurrentVideo->setNewSubtitle(new Subtitle($Filename[1], $Filename[0][count($Filename[0])-2], $CurrentSubtitle, "Agents"));
+		</script>
+	</head>
+	<body>
+		<table cellpadding="0" cellspacing="0" class="BoxTable">
+			<tr><td class="BoxTable_td mediumlong">
+
+				<div id="MenuBar" class="headline"><a href='index.php'>Home</a></div>
+				<div id="MenuBox">
+
+					<?php
+/**
+* Get the libraries that are in the database and present them to the user.
+*/ 
+echo "<table cellspacing=0 cellpadding=0 style='width: 100%'><tr class='headline'>";
+if($_SESSION['Option_HideID']['set'] === false) {
+	echo "<td>ID</td>";
+}	
+echo "<td>Title</td></tr>";
+$xml = simplexml_load_file($Server . '/library/sections');
+foreach($xml as $xmlrow) {
+	$Section = $xmlrow->attributes();			
+	$LibraryName = $Section->title;
+	if($Section->key == $CurrentLibraryID) {
+		$CurrentLibraryName = $Section->title;
+		$LibraryName = "<b>" . $Section->title . "</b>";
+	}
+	echo "<tr class='hovering'>";
+	if($_SESSION['Option_HideID']['set'] === false) {
+		echo "<td class='mainText'>".$Section->key."</td>";
+	}
+	echo "<td class='mainText'><a href='?libraryID=".$Section->key."&startLimit=0'>".$LibraryName."</a></td></tr>";
+
+}
+echo "</table>";
+echo "<br>";
+
+if($CurrentLibraryID !== false) {
+	echo "<br>";
+	echo "<form name='searchForm' method='GET' action=''>";
+	echo "<input type='hidden' name='libraryID' value='".$CurrentLibraryID."'>";
+	echo "<input type='hidden' name='startLimit' value='0'>";
+	echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
+	echo "<tr class='headline'><td>Search: ".$CurrentLibraryName."</td></tr>";
+	echo "<tr><td class='mainText'>Enter title to search for:</td></tr>";
+	echo "<tr><td class='mainText'><input type='text' name='searchCriteria' value='".$Searchstring."'></td></tr>";
+	echo "<tr><td class='mainText'><input type='submit'></td></tr>";
+	echo "</table>";
+	echo "</form>";
+}
+echo "<br>";
+echo "<form name='optionsForm' method='post' action=''>";
+echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
+echo "<tr class='headline'><td>Options</td></tr>";
+echo "<tr><td class='mainText'><input type='checkbox' name='HideLocal' ".$_SESSION['Option_HideLocal']['checked'].">Hide local subtitles</td></tr>";
+echo "<tr><td class='mainText'><input type='checkbox' name='HideEmpty' ".$_SESSION['Option_HideEmpty']['checked'].">Hide videos without subtitles</td></tr>";	
+echo "<tr><td class='mainText'><input type='checkbox' name='HideIntegrated' ".$_SESSION['Option_HideIntegrated']['checked'].">Hide integrated subtitles</td></tr>";
+echo "<tr><td class='mainText'><input type='checkbox' name='OnlyMultiple' ".$_SESSION['Option_MultipleSubtitlesOnly']['checked'].">Show only multiple subtitles/language</td></tr>";
+echo "<tr><td class='mainText'><input type='text' size='2' name='ItemsPerPage' value='".$_SESSION['Option_ItemsPerPage']['value']."'>Items per page</td></tr>";
+echo "<tr><td class='mainText'><input type='submit' name='SaveOptions' value='Save'></td></tr>";
+echo "</table>";
+echo "</form>";
+echo "<br>";
+echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
+echo "<tr class='headline'><td>Recommended usage</td></tr>";
+echo "<tr><td class='mainText'>";
+echo "1. Disable the subtitles agents<br>";
+echo "2. Remove the subtitles you want via this script.<br>";
+echo "3. Go to the movies you altered and update them, searching for new metadata.<br>";
+echo "4. Re-enable subtitle agents if you want. You should now have a cleaner list of subtitles.<br><br>";
+echo "</td></tr>";
+echo "<tr class='headline'><td>Information & Features</td></tr>";		
+echo "<tr><td class='mainText'>";
+echo "This is an unofficial manager for subtitles.<br>";
+echo "<b>Usage is on your own risk!</b><br><br>";
+echo "Current features:<br>";
+echo "<ul>";
+echo "<li>List all subtitles for a movie/tv show in your library. Both local (next to the movie in it's folder or one subfolder) and in the c:\users appdata folder.</li>";
+echo "<li>View the subtitle and see it's contents to determine what to delete.</li>";
+echo "<li>Delete selected subtitle from the harddrive.</li>";
+echo "<li>Search for videos.</li>";
+echo "<li>Options for output.</li>";
+echo "</ul>";
+echo "</td></tr>";
+echo "</table>";
+					?>
+				</div>
+				</td><td class="BoxTable_td">
+				<div id="PageBar" class="headline"><?php echo $MenuItem?></div>
+				<div id="MainBox">
+					<?php	
+						if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){	
+						/*
+						* For each item in the ArrayVideos array.. check if we reached the max limit for items per page.
+						*/
+						for ($i=$startLimit;$i<count($ArrayVideos);$i++) {
+							if($i == ($startLimit+$_SESSION['Option_ItemsPerPage']['value'])) {
+								break;
 							}
-						
-					}
-				}    
-				
-				/**
-				 * Use the files folder to locate any subtitles that are either in the same directory or one below the file.
-				 * Local subtitles always has to have the same name as the file. We check that the subtitles found match that.
-				 * Check for subtitles ending with .srt .ass .ssa .smi
-				 */
-				if($_SESSION['Option_HideLocal']['set'] === false) { 
-					if(file_exists($Folder[0]) === true) {
-						$var_Local = ListDir($Folder[0],1);		
-						foreach($var_Local as $CurrentSubtitle) {
-							if( (strpos($CurrentSubtitle,".srt") !== false) or (strpos($CurrentSubtitle,".ass") !== false) or (strpos($CurrentSubtitle,".ssa") !== false) or (strpos($CurrentSubtitle,".smi") !== false) ) {
-								$Filename = SepFilename($CurrentSubtitle);
-								$Filename[0] = explode("/",$Filename[0]);
-								if(stripos($Filename[1],$VideoNameWithoutEnding) !== false) {
-									$CurrentVideo->setNewSubtitle(new Subtitle($Filename[1], $Filename[0][count($Filename[0])-1], $CurrentSubtitle, "Local"));
+							$Video = $ArrayVideos[$i];
+							$AdditionalShowOutput = "";
+							echo "<div class='VideoBox'>";		
+
+							if($Video->getType() == "show"){
+								echo "<div class='VideoHeadline'><a href='index.php?libraryID=".$Video->getLibraryID()."&startLimit=0&ShowKey=".$Video->getID()."&ParentKey=".$Video->getParentID()."'>".$Video->getTitle()."</a></div>";
+							} else {
+
+								echo "<form id='".(string)$Video->getID()."' name='".(string)$Video->getID()."' method='POST' target='WorkFrame'>";
+
+								if($_SESSION['Option_HideID']['set'] === false) {
+									//echo $Video->getRatingKey() . "." . $Video->getSeasonIndex() . "." . $Video->getEpisodeIndex();
 								}
-							}
-						}
-					}  
-				}
-			}
-			
-			$ArrayVideos[] = $CurrentVideo;	
-		}
-		
-		/**
-		 * Outputs
-		 */
-		echo "<table cellspacing=0 cellpadding=0 class='TableLayout'><tr class='headline'><td class='small'>";
-		if($_SESSION['Option_HideID']['set'] === false) {
-			echo "ID";
-		}
-		echo "</td><td class='mediumlong'>Title</td><td class='extralong' colspan='2'>File</td></tr>"; 
-		foreach ($ArrayVideos as $Video) {
-			if( ($Video->getLibraryType() == 2) and ($Video->getNumberOfChilds()>0) ){
-				echo "<tr><td class='mainText'>";
-				if($_SESSION['Option_HideID']['set'] === false) {
-					echo $Video->getID();
-				}
-				echo "</td><td class='mainText'><a href='index.php?libraryID=".$Video->getLibraryID()."&startLimit=0&showID=".$Video->getID()."'>".$Video->getTitle()."</a></td></tr>";	
-			} else {
-				if(($_SESSION['Option_HideEmpty']['set'] === true) and (count($Video->getSubtitles())<1) ) {
-				} else {	
-					echo "<form id='".$Video->getID()."' name='".$Video->getID()."' method='POST' target='WorkFrame'>";
-					 	echo "<tr class='entryheadline'><td class='mainText'>";
-					 		if($_SESSION['Option_HideID']['set'] === false) {
-					 			echo $Video->getID();
-					 		}
-					 		echo "</td><td class='mainText'>".$Video->getTitle()."</td>" . "<td class='mainText'>".$Video->getPath()."</td><td class='mainText long'><span class='link' onclick='confirmSubmit(\"".$Video->getID()."\");'>Delete Selected</span></td>";
-					 	echo "</tr>";
-					 	
-					 	/**
+								if(strlen($Video->getTitleShow())>0) {
+									$AdditionalShowOutput = (string)$Video->getTitleShow() ."/". (string)$Video->getTitleSeason() . "/";	
+								}
+								echo "<div class='VideoHeadline'>" . $AdditionalShowOutput . $Video->getTitle() . "</div>";
+								echo "<div class='VideoPath'>".$Video->getPath()."</div>";
+
+								/**
 					 	 * Print out subtitles if it's not a librarytype 2.
 					 	 */ 
-					 	 
-					 		foreach ($Video->getSubtitles() as $SubtitleLanguageArray) {
-					 			if(($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) and (count($SubtitleLanguageArray)<2)) {
-					 			} else {	
-					 			foreach ($SubtitleLanguageArray as $Subtitle) {
-					 				$Language = "";
-					 				if(strlen($Subtitle->getLanguage())>0) {
-					 					$Language =  $Subtitle->getLanguage() . "/";
-					 				}
-						 			echo   "<tr class='hovering'><td class='mainText'><input type='checkbox' name='Subtitle[]' value=\"".$Subtitle->getPath()."\"></td><td class='mainText'>".$Subtitle->getSource()."</td><td class='mainText' colspan='2'><a target=\"_NEW\" href=\"ReadFile.php?FileToOpen=".$Subtitle->getPath()."\">View</a> ".$Language . $Subtitle->getFilename() . "</td></tr>";
-					 			}
-					 			}
-					 		}
-				 	echo "</form>";
-					echo "<tr><td class='hidden'>&nbsp;</td></tr>";
-				}
-			}
-		}
-		echo "</table>";	
-	} else{
-		echo "Please select a library.";
-	}
-	?>
-	</div>
-</div>
-<iframe name="WorkFrame" class="hiddenframe"></iframe>
-</body>
+
+								foreach ($Video->getSubtitles() as $SubtitleLanguageArray) {	
+									foreach ($SubtitleLanguageArray as $Subtitle) {
+										$Language = "";
+										$Active = "";
+										$View = "";
+										$Checkbox = "";
+										$Exists = "";
+										$AddClass = false;
+
+										if(strlen($Subtitle->getLanguage())>0) {
+											$Language =  $Subtitle->getLanguage();
+										}
+
+
+										if( ($Video->getActiveSubtitle()>0) and ((int)$Video->getActiveSubtitle() == (int)$Subtitle->getID()) ){
+
+											$Active = "Selected subtitle in Plex";
+											$AddClass = "Active";
+										}
+
+										if($Subtitle->getPath() !== false) {
+											$View = "<a target=\"_NEW\" href=\"ReadFile.php?FileToOpen=".$Subtitle->getPath()."\">View</a> ";
+											$Checkbox = "<input type='checkbox' name='Subtitle[]' value=\"".$Subtitle->getPath()."\">";
+										}
+
+										if( (file_exists($Subtitle->getPath()) === false) and ($Subtitle->getPath() !== false) ) {
+											$Exists = "Not found on disk. Please update Plex library.";
+											$Checkbox = "";
+											$View = "";
+											$AddClass = "Removed";
+										}
+
+										echo "<div class='VideoSubtitle hovering " . $AddClass . "'>";
+										echo "<table class='Max' cellspacing=0 cellpadding=0><tr><td class='small'>" . $Checkbox . "</td><td class='small'>" . $Subtitle->getSource() . "</td><td class='small'>" .$Language ."</td><td>". $Subtitle->getFilename() . "</td><td class='small'>" . $View . "</td></tr>";
+										if ($AddClass !== false) {
+											echo "<tr><td></td><td></td><td></td><td>Message: " . $Active . $Exists . "</td></tr>";
+										}
+										echo "</table></div>";
+									}
+								}
+								echo "</form>";
+								echo "<div class='VideoBottom'><span class='link' onclick='confirmSubmit(\"".$Video->getID()."\");'>Delete Selected</span></div>";
+							}
+							echo "</div>";
+						}
+					} else {
+
+						echo "<div class='VideoBox'>";	
+						echo "<div class='VideoHeadline'>Welcome</div>";
+						echo "<div class='VideoSubtitle'>Please select a library.";
+						if($FolderCheck === false) {
+							echo "<br>Please check the path to your PlexMediaFolder in the settings.php or install the Devtools.Bundle by Dane22 on the Plex Forums.";
+						}
+						echo "</div>";
+						echo "</div>";
+					}
+					?>
+				</div>
+				</td></tr></table>
+		<iframe name="WorkFrame" class="hiddenframe"></iframe>
+	</body>
 </html>
