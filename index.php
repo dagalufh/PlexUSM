@@ -168,10 +168,12 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 
 		/** For the current section, list all the movies */
 		$xmlsub = simplexml_load_file($Server . '/library/sections/'.$CurrentLibraryID.'/all');
+		//$xmlsub = FetchXML('/library/sections/'.$CurrentLibraryID.'/all');
 		foreach($xmlsub as $xmlrowsub) {	
 			$AddVideo = true;
 
 			$xmlsub2 = simplexml_load_file($Server.$xmlrowsub['key'].'/tree');
+			//$xmlsub2 = FetchXML($xmlrowsub['key'].'/tree');
 			if ($xmlrowsub['type'] == "show") {
 				/**
 				 * If it is a show, we don't need to search for subtitles.
@@ -191,6 +193,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 					$MatchingEpisodes = false;
 
 					$SeasonXML = simplexml_load_file($Server . $CurrentVideo->getID() . '/all');
+					//$SeasonXML = FetchXML($CurrentVideo->getID() . '/all');
 					foreach($SeasonXML as $Season) {
 						if(isset($Season->attributes()->index) !== false) {
 							$MatchingEpisodes_Temp = get_show_episodes($Season->attributes()->key,$Season->attributes(),$CurrentVideo, $Searchstring);
@@ -232,6 +235,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 					}
 
 					$ActiveSubtitleXML = simplexml_load_file($Server.$xmlrowsub['key']);
+					//$ActiveSubtitleXML = FetchXML($xmlrowsub['key']);
 					foreach($ActiveSubtitleXML as $ActiveSubtitle) { 
 						$Streams = $ActiveSubtitle->Media->Part->Stream;
 						foreach($Streams as $ActiveSubtitle) {
@@ -368,6 +372,7 @@ if($_SESSION['Option_HideID']['set'] === false) {
 }	
 echo "<td>Title</td></tr>";
 $xml = simplexml_load_file($Server . '/library/sections');
+//$xml = FetchXML('/library/sections');
 foreach($xml as $xmlrow) {
 	$Section = $xmlrow->attributes();			
 	$LibraryName = $Section->title;
@@ -520,12 +525,26 @@ echo "</table>";
 						echo "<div class='VideoBox'>";	
 						echo "<div class='VideoHeadline'>Welcome</div>";
 						echo "<div class='VideoSubtitle'>Please select a library.";
-						if($FolderCheck === false) {
-							echo "<br>Please check the path to your PlexMediaFolder in the settings.php or install the Devtools.Bundle by Dane22 on the Plex Forums.";
+						if($FolderCheck === true) {
+							//echo "<br>Please check the path to your PlexMediaFolder in the settings.php or install the Devtools.Bundle by Dane22 on the Plex Forums.";
+							echo "One or more errors has occured:<br>";
+							foreach($LogArray['error'] as $LogEntry) {
+								echo $LogEntry . "<br>";
+							}
 						}
 						echo "</div>";
 						echo "</div>";
 					}
+if($Debug) {
+	echo "<div class='VideoBox'>";	
+	echo "<div class='VideoHeadline'>Debug</div>";
+	echo "<div class='VideoSubtitle'>";
+	foreach($LogArray['debug'] as $LogEntry) {
+		echo $LogEntry . "<br>";
+	}
+	echo "</div>";
+	echo "</div>";
+}
 					?>
 				</div>
 				</td></tr></table>

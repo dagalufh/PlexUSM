@@ -27,6 +27,7 @@ function SortVideos( $a, $b ) {
 function get_show_seasons($ShowKey) {
 	global $Server, $ArrayVideos;
 	$xmlsub = simplexml_load_file($Server . $ShowKey . '/all');
+	//$xmlsub = FetchXML($ShowKey . '/all');
 	foreach($xmlsub as $xmlrowsub) {
 		$Season = $xmlrowsub->attributes();
 		$CurrentVideo = new Video($Season->key,$Season->title);
@@ -43,6 +44,7 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 	$MatchedEpisodes = false;
 
 	$xmlsub = simplexml_load_file($Server.$ShowKey);
+	//$xmlsub = FetchXML($ShowKey);
 	foreach($xmlsub as $xmlrowsub) {
 		$AddVideo = true;
 		//var_dump($xmlrowsub2);
@@ -69,11 +71,13 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 			$CurrentVideo->setRatingKey($ShowRatingKey->getRatingKey());
 		} else {
 			$Season_XML = simplexml_load_file($Server . $Episode->parentKey . '/tree');
+			//$Season_XML = FetchXML($Episode->parentKey . '/tree');
 			foreach($Season_XML as $Season) {
 				if($Season->attributes()->key == $Episode->parentkey) {
 					$CurrentVideo->setSeasonIndex($Season->attributes()->index);
 					
 					$Show_XML = simplexml_load_file($Server . $Episode->parentKey . '/tree');
+					//$Show_XML = FetchXML($Episode->parentKey . '/tree');
 					foreach($Show_XML as $Show) {
 						if($Show->attributes()->key == $Season->parentkey) {
 							$CurrentVideo->setRatingKey($Show->attributes()->ratingKey);
@@ -85,6 +89,7 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 		}
 		
 		$ActiveSubtitleXML = simplexml_load_file($Server.$Episode->key);
+		//$ActiveSubtitleXML = FetchXML($Episode->key);
 		foreach($ActiveSubtitleXML as $ActiveSubtitle) { 
 			$Streams = $ActiveSubtitle->Media->Part->Stream;
 			foreach($Streams as $ActiveSubtitle) {
@@ -95,6 +100,7 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 		}
 
 		$xmlsub3 = simplexml_load_file($Server.$Episode->key . '/tree');
+		//$xmlsub3 = FetchXML($Episode->key . '/tree');
 		foreach($xmlsub3 as $xmlrowsub3) {
 			$CurrentMediaPart= $xmlrowsub3->MetadataItem->MetadataItem->MediaItem->MediaPart;
 			
@@ -155,16 +161,72 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 
 function CheckSettings() {
 	global $Server, $PathToPlexMediaFolder, $AppendPathWith;
-	$Settings = simplexml_load_file($Server. "/:/plugins/com.plexapp.plugins.DevTools/prefs");
-	foreach($Settings as $SettingsItem) {
-		
-		if($SettingsItem->attributes()->id == "Home") {
-			$PathToPlexMediaFolder = preg_replace("/\\\\/i", "/", $SettingsItem->attributes()->value) . $AppendPathWith;
-		}
+	$ErrorOccured = false;
+	
+	if(!extension_loaded('simplexml')) {
+		USMLog("error", "The extension 'SimpleXML' is not loaded.");
+		$ErrorOccured = true;
+	}
+
+	if(!ini_get('allow_url_fopen')) {
+		USMLog("error", "allow_url_fopen is set to false. Needs to be enabled to allow opening of url:s.");
+		$ErrorOccured = true;
 	}
 	
-	if(file_exists($PathToPlexMediaFolder) === false) {
+	if(!$ErrorOccured) {
+		$Settings = FetchXML("/:/plugins/com.plexapp.plugins.DevTools/prefs");
+		//$Settings = simplexml_load_file($Server. "/:/plugins/com.plexapp.plugins.DevTools/prefs");
+		if($Settings !== false) {
+			foreach($Settings as $SettingsItem) {
+
+				if($SettingsItem->attributes()->id == "Home") {
+					$PathToPlexMediaFolder = preg_replace("/\\\\/i", "/", $SettingsItem->attributes()->value) . $AppendPathWith;
+				}
+			}
+		}
+
+		if(file_exists($PathToPlexMediaFolder) === false) {
+			USMLog("error", "The path: '" . $PathToPlexMediaFolder . "' does not exist.");
+			$ErrorOccured = true;
+		}
+	}
+	return $ErrorOccured;	
+}
+
+function FetchXML ($url) {
+	global $Server, $Debug;
+	$ErrorOccured = false;
+	$xmlResult = "";
+	$xmlResult = simplexml_load_file($Server . $url);
+	if(!$xmlResult) {
+		USMLog("error", "Failed to fetch xml from path: '" . $Server . $url."'");
+		$ErrorOccured = true;	
+	}
+	if($Debug) {
+		USMLog("debug", "Received request to fetch xml from: '" . $Server . $url."'");
+	}
+	
+	if(!$ErrorOccured) {
+		return $xmlResult;
+	} else {
 		return false;
 	}
+}
+
+function USMLog ($Type, $Message, $Debugtrace = false) {
+	global $Logfile, $LogArray;
+	$LogArray[$Type][] = date("y-m-d h:i:s") . ": " . $Message;
+	
+	if($Debugtrace !== false) {
+		$DebugMessage = "Debug backtrace:<br>";
+		for($i=0;$i<count($Debugtrace);$i++) {
+			$DebugMessage .= "[".$i."] Function name: " . $Debugtrace[$i]['function'] . "<br>";
+			$DebugMessage .= "[".$i."] Line number: " . $Debugtrace[$i]['line'] ." in file ". $Debugtrace[$i]['file'] . "<br>";	
+			//$DebugMessage .= "[".$i."] Arguments: " . serialize($Debugtrace[$i]['args']) . "<br>";	
+		}				
+		$LogArray[$Type][] = date("y-m-d h:i:s") . ": " . $DebugMessage;
+	}
+	
+	
 }
 ?>
