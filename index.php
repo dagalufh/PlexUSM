@@ -1,11 +1,18 @@
 <?php
 session_start();
+$starttime = microtime();
+$startarray = explode(" ", $starttime);
+$starttime = $startarray[1] + $startarray[0];
 /**
  * Thought:
  * Create a class - Shows, Subclass - Season - Episodes?
  *
  *
  * Changelog
+ * V0.4.2
+ * Added some logging
+ * Corrected in Settings.php to append with localhost, with a lowercase "l".
+ *
  * V0.4
  * Completly moved away from database. Now uses the webapi.
  * Recommends to use devtool.bundle created by dane22 as that allows the script to self figure out the path to your plex media/localhost folder where agents store subtitles.
@@ -167,13 +174,13 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 	} else {
 
 		/** For the current section, list all the movies */
-		$xmlsub = simplexml_load_file($Server . '/library/sections/'.$CurrentLibraryID.'/all');
-		//$xmlsub = FetchXML('/library/sections/'.$CurrentLibraryID.'/all');
+		//$xmlsub = simplexml_load_file($Server . '/library/sections/'.$CurrentLibraryID.'/all');
+		$xmlsub = FetchXML('/library/sections/'.$CurrentLibraryID.'/all');
 		foreach($xmlsub as $xmlrowsub) {	
 			$AddVideo = true;
 
-			$xmlsub2 = simplexml_load_file($Server.$xmlrowsub['key'].'/tree');
-			//$xmlsub2 = FetchXML($xmlrowsub['key'].'/tree');
+			//$xmlsub2 = simplexml_load_file($Server.$xmlrowsub['key'].'/tree');
+			$xmlsub2 = FetchXML($xmlrowsub['key'].'/tree');
 			if ($xmlrowsub['type'] == "show") {
 				/**
 				 * If it is a show, we don't need to search for subtitles.
@@ -192,8 +199,8 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 					$CurrentVideo->setActiveSubtitle(0);
 					$MatchingEpisodes = false;
 
-					$SeasonXML = simplexml_load_file($Server . $CurrentVideo->getID() . '/all');
-					//$SeasonXML = FetchXML($CurrentVideo->getID() . '/all');
+					//$SeasonXML = simplexml_load_file($Server . $CurrentVideo->getID() . '/all');
+					$SeasonXML = FetchXML($CurrentVideo->getID() . '/all');
 					foreach($SeasonXML as $Season) {
 						if(isset($Season->attributes()->index) !== false) {
 							$MatchingEpisodes_Temp = get_show_episodes($Season->attributes()->key,$Season->attributes(),$CurrentVideo, $Searchstring);
@@ -234,8 +241,8 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 						}
 					}
 
-					$ActiveSubtitleXML = simplexml_load_file($Server.$xmlrowsub['key']);
-					//$ActiveSubtitleXML = FetchXML($xmlrowsub['key']);
+					//$ActiveSubtitleXML = simplexml_load_file($Server.$xmlrowsub['key']);
+					$ActiveSubtitleXML = FetchXML($xmlrowsub['key']);
 					foreach($ActiveSubtitleXML as $ActiveSubtitle) { 
 						$Streams = $ActiveSubtitle->Media->Part->Stream;
 						foreach($Streams as $ActiveSubtitle) {
@@ -371,10 +378,13 @@ if($_SESSION['Option_HideID']['set'] === false) {
 	echo "<td>ID</td>";
 }	
 echo "<td>Title</td></tr>";
-$xml = simplexml_load_file($Server . '/library/sections');
-//$xml = FetchXML('/library/sections');
+//$xml = simplexml_load_file($Server . '/library/sections');
+$xml = FetchXML('/library/sections');
 foreach($xml as $xmlrow) {
-	$Section = $xmlrow->attributes();			
+	$Section = $xmlrow->attributes();	
+	if($Debug) {
+		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Value in Section-variable: \n" . var_export($Section,true) . "\n");
+	}
 	$LibraryName = $Section->title;
 	if($Section->key == $CurrentLibraryID) {
 		$CurrentLibraryName = $Section->title;
@@ -466,7 +476,7 @@ echo "</table>";
 									//echo $Video->getRatingKey() . "." . $Video->getSeasonIndex() . "." . $Video->getEpisodeIndex();
 								}
 								if(strlen($Video->getTitleShow())>0) {
-									$AdditionalShowOutput = (string)$Video->getTitleShow() ."/". (string)$Video->getTitleSeason() . "/";	
+									$AdditionalShowOutput = "<span class='Shadow'>" .(string)$Video->getTitleShow() ."/". (string)$Video->getTitleSeason() . "/</span>";	
 								}
 								echo "<div class='VideoHeadline'>" . $AdditionalShowOutput . $Video->getTitle() . "</div>";
 								echo "<div class='VideoPath'>".$Video->getPath()."</div>";
@@ -529,7 +539,7 @@ echo "</table>";
 							//echo "<br>Please check the path to your PlexMediaFolder in the settings.php or install the Devtools.Bundle by Dane22 on the Plex Forums.";
 							echo "One or more errors has occured:<br>";
 							foreach($LogArray['error'] as $LogEntry) {
-								echo $LogEntry . "<br>";
+								echo nl2br($LogEntry) . "<br>";
 							}
 						}
 						echo "</div>";
@@ -540,11 +550,21 @@ if($Debug) {
 	echo "<div class='VideoHeadline'>Debug</div>";
 	echo "<div class='VideoSubtitle'>";
 	foreach($LogArray['debug'] as $LogEntry) {
-		echo $LogEntry . "<br>";
+		echo nl2br($LogEntry) . "<br>";
 	}
 	echo "</div>";
 	echo "</div>";
 }
+
+
+$endtime = microtime();
+$endarray = explode(" ", $endtime);
+$endtime = $endarray[1] + $endarray[0];
+$totaltime = $endtime - $starttime;
+$totaltime = round($totaltime,2);
+echo "<div class='VideoBox'>";
+echo "<div class='VideoSubtitle Center'>Page Loading Time: </b>" . $totaltime . " seconds.";
+echo "</div></div>";
 					?>
 				</div>
 				</td></tr></table>
