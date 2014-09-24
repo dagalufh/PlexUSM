@@ -40,7 +40,7 @@ function get_show_seasons($ShowKey) {
 }
 
 function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", $SearchString = false) {
-	global $Server, $ArrayVideos, $PathToPlexMediaFolder;
+	global $Server, $ArrayVideos, $PathToPlexMediaFolder, $SearchSubtitleProviderFiles;
 	$MatchedEpisodes = false;
 
 	//$xmlsub = simplexml_load_file($Server.$ShowKey);
@@ -78,8 +78,10 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 				if((int)$Season->attributes()->ratingKey == (int)$Episode->parentRatingKey) {
 					$CurrentVideo->setSeasonIndex($Season->attributes()->index);
 					$CurrentVideo->setTitleSeason($Season->attributes()->title);
+					$CurrentVideo->setSeasonKey($Season->attributes()->key);
 					$CurrentVideo->setRatingKey($Season->attributes()->ratingKey);
 					$CurrentVideo->setTitleShow($Season->attributes()->parentTitle);
+					$CurrentVideo->setShowKey($Season->attributes()->parentKey);
 				}
 			}
 						
@@ -100,8 +102,8 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 		$xmlsub3 = FetchXML($Episode->key . '/tree');
 		foreach($xmlsub3 as $xmlrowsub3) {
 			$CurrentMediaPart= $xmlrowsub3->MetadataItem->MetadataItem->MediaItem->MediaPart;
-			
 			$CurrentVideo->setPath($CurrentMediaPart->attributes()->file);
+			$CurrentVideo->setHash($CurrentMediaPart->attributes()->hash);
 			foreach($CurrentMediaPart->MediaStream as $Subtitle) {
 				if($Subtitle->attributes()->type == 3) {
 
@@ -136,7 +138,27 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 				}
 			}
 		}
-
+		
+		/** Check if there is duplicates according to .xml file in Subtitle Contributions.
+		
+		foreach ($SearchSubtitleProviderFiles as $Provider) {
+			$HashDirectory = substr($CurrentVideo->getHash(),0,1) . "/" . substr($CurrentVideo->getHash(),1) . ".bundle/Contents/Subtitle Contributions/" . $Provider;
+			if(file_exists($PathToPlexMediaFolder . $HashDirectory)) {
+				//echo "Exists(URL: " . $PathToPlexMediaFolder . $HashDirectory . ")<br>";
+				$SubtitleProviderXML = simplexml_load_file($PathToPlexMediaFolder . $HashDirectory);
+				foreach($SubtitleProviderXML as $SubtitleProvider) {
+					foreach($SubtitleProvider->Subtitle as $Sub) {
+					echo $Sub->attributes()->name;
+					
+					echo "<br>";
+					}
+					//echo $SubtitleProvider->Subtitle->attributes()->media;
+					echo "<br>";echo "<br>";
+					
+				}
+			}
+		}
+		*/
 		foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
 			if(($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) and (count($SubtitleLanguageArray)<2)) {
 				$AddVideo = false;	
@@ -242,4 +264,6 @@ function USMLog ($Type, $Message, $Debugtrace = false) {
 	
 	fclose($fp);	
 }
+// check if com.plexapp.agents.opensubtitles.xml or com.plexapp.agents.podnapisi.xml exists in Hash/Contents/Subtitle Contributions/ if so, parse the hell out of it.
+// check if subtitle->name contains /sid- (atleast for opensubtitles. Check if this applies to podnapasi aswell)
 ?>

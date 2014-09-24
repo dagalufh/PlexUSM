@@ -15,4 +15,7 @@ $ItemsPerPage = 5;
 $Logfile = "plexusmerror.log";
 $LogArray = array();
 $Debug = false; // use this to force logging on always and more detailed.
+
+$SearchSubtitleProviderFiles[0] = "com.plexapp.agents.opensubtitles.xml";
+$SearchSubtitleProviderFiles[1] = "com.plexapp.agents.podnapisi.xml";
 ?>

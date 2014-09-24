@@ -15,6 +15,8 @@ class Video {
 	private $Path;
 	private $RatingKey;
 	private $SeasonIndex;
+	private $SeasonKey;
+	private $ShowKey;
 	private $Title; 	 	
 	private $TitleShow;
 	private $TitleSeason;
@@ -71,6 +73,14 @@ class Video {
 
 	public function getSeasonIndex() {
 		return $this->SeasonIndex;
+	}
+	
+	public function getSeasonKey() {
+		return $this->SeasonKey;
+	}
+	
+	public function getShowKey() {
+		return $this->ShowKey;
 	}
 
 	public function getTitle() {
@@ -131,6 +141,14 @@ class Video {
 
 	public function setSeasonIndex($Index) {
 		$this->SeasonIndex = $Index;
+	}
+	
+	public function setSeasonKey($Key) {
+		$this->SeasonKey = $Key;
+	}
+	
+	public function setShowKey($Key) {
+		$this->ShowKey = $Key;
 	}
 	
 	public function setTitleShow($TitleShow) {

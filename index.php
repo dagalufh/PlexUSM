@@ -4,11 +4,7 @@ $starttime = microtime();
 $startarray = explode(" ", $starttime);
 $starttime = $startarray[1] + $startarray[0];
 /**
- * Thought:
- * Create a class - Shows, Subclass - Season - Episodes?
- *
- *
- * Changelog
+  * Changelog
  * V0.4.2
  * Added some logging
  * Corrected in Settings.php to append with localhost, with a lowercase "l".
@@ -296,7 +292,28 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 							}
 						}
 					}
+					
+					/** Check if there is duplicates according to .xml file in Subtitle Contributions.
+					
+					foreach ($SearchSubtitleProviderFiles as $Provider) {
+						$HashDirectory = substr($CurrentVideo->getHash(),0,1) . "/" . substr($CurrentVideo->getHash(),1) . ".bundle/Contents/Subtitle Contributions/" . $Provider;
+						if(file_exists($PathToPlexMediaFolder . $HashDirectory)) {
+							//echo "Exists(URL: " . $PathToPlexMediaFolder . $HashDirectory . ")<br>";
+							$SubtitleProviderXML = simplexml_load_file($PathToPlexMediaFolder . $HashDirectory);
+							foreach($SubtitleProviderXML as $SubtitleProvider) {
+								foreach($SubtitleProvider->Subtitle as $Sub) {
+									echo $Sub->attributes()->name;
 
+									echo "<br>";
+								}
+								//echo $SubtitleProvider->Subtitle->attributes()->media;
+								
+
+							}
+							echo "<br>";echo "<br>";
+						}
+					}
+					*/
 
 					foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
 						if(($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) and (count($SubtitleLanguageArray)<2)) {
@@ -462,6 +479,7 @@ echo "</table>";
 							if($i == ($startLimit+$_SESSION['Option_ItemsPerPage']['value'])) {
 								break;
 							}
+							
 							$Video = $ArrayVideos[$i];
 							$AdditionalShowOutput = "";
 							echo "<div class='VideoBox'>";		
@@ -535,8 +553,7 @@ echo "</table>";
 						echo "<div class='VideoBox'>";	
 						echo "<div class='VideoHeadline'>Welcome</div>";
 						echo "<div class='VideoSubtitle'>Please select a library.";
-						if($FolderCheck === true) {
-							//echo "<br>Please check the path to your PlexMediaFolder in the settings.php or install the Devtools.Bundle by Dane22 on the Plex Forums.";
+						if($FolderCheck === true) {							
 							echo "One or more errors has occured:<br>";
 							foreach($LogArray['error'] as $LogEntry) {
 								echo nl2br($LogEntry) . "<br>";
