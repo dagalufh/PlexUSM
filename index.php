@@ -187,6 +187,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 				 */
 
 					$CurrentVideo = new Video($xmlrowsub['key'],$xmlrowsub['title']);
+					USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found Show: '" . $xmlrowsub['title'] ."'");
 					$CurrentVideo->setLibraryID($CurrentLibraryID);
 					$CurrentVideo->setType($xmlrowsub['type']);
 					$CurrentVideo->setRatingKey($xmlrowsub['ratingKey']);
@@ -226,6 +227,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 
 					$CurrentMediaPart= $xmlrowsub2->MediaItem->MediaPart;
 					$CurrentVideo = new Video($xmlrowsub2->attributes()->id,$xmlrowsub2->attributes()->title);
+					USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found Movie: '" . $xmlrowsub2->attributes()->title ."'");
 					//print_r($xmlrowsub2);
 					//echo "<br><br>";
 					/**
@@ -276,12 +278,13 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 								} else {
 									$LocalSubtitle = true;
 								}
-								if($_SESSION['Option_HideLocal']['set'] === false) { 
-
+								if($_SESSION['Option_HideLocal']['set'] === false) { 									
 									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $subtitle->attributes()->codec));
+									USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
 								} else {
 									if($LocalSubtitle === false) {
 										$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $subtitle->attributes()->codec));
+										USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
 									}
 								}
 
@@ -518,7 +521,6 @@ echo "</table>";
 
 
 										if( ($Video->getActiveSubtitle()>0) and ((int)$Video->getActiveSubtitle() == (int)$Subtitle->getID()) ){
-
 											$Active = "Selected subtitle in Plex";
 											$AddClass = "Active";
 										}
@@ -529,6 +531,7 @@ echo "</table>";
 										}
 
 										if( (file_exists($Subtitle->getPath()) === false) and ($Subtitle->getPath() !== false) ) {
+											USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find '" . $Subtitle->getPath()."' on disk.");
 											$Exists = "Not found on disk. Please update Plex library.";
 											$Checkbox = "";
 											$View = "";

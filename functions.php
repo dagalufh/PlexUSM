@@ -31,6 +31,7 @@ function get_show_seasons($ShowKey) {
 	foreach($xmlsub as $xmlrowsub) {
 		$Season = $xmlrowsub->attributes();
 		$CurrentVideo = new Video($Season->key,$Season->title);
+		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found season: '" . $Season->title ."'");
 		$CurrentVideo->setType("show");
 		$CurrentVideo->setParentID($ShowKey);
 		$CurrentVideo->setLibraryID($_GET['libraryID']);
@@ -50,6 +51,8 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 		//var_dump($xmlrowsub2);
 
 		$Episode = $xmlrowsub->attributes();
+		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found episode: '" . $Episode->title ."'");
+		
 		$CurrentVideo = new Video($Episode->key,$Episode->title);
 		$CurrentVideo->setType("movie");
 		$CurrentVideo->setEpisodeIndex($Episode->index);
@@ -125,14 +128,17 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 						}
 						if($_SESSION['Option_HideLocal']['set'] === false) { 
 							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $Subtitle->attributes()->codec));
+							USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
 						} else {
 							if($LocalSubtitle === false) {
 								$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $Subtitle->attributes()->codec));
+								USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
 							}
 						}
 					} else {
 						if($_SESSION['Option_HideIntegrated']['set']  === false) {
 							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, "Integrated subtitle", $Language,  false, $Subtitle->attributes()->codec));	
+							
 						}
 					}
 				}
@@ -211,6 +217,8 @@ function CheckSettings() {
 			USMLog("error", "The path: '" . $PathToPlexMediaFolder . "' does not exist.");
 			$ErrorOccured = true;
 		}
+		
+		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] PathToPlexMediaFolder set to: '" . $PathToPlexMediaFolder ."'");
 	}
 
 	
@@ -227,6 +235,7 @@ function FetchXML ($url) {
 		USMLog("error", "Failed to fetch xml from path: '" . $Server . $url."'");
 		$ErrorOccured = true;	
 	}
+	
 	if($Debug) {
 		USMLog("debug", "Received request to fetch xml from: '" . $Server . $url."'", debug_backtrace());
 	}
@@ -235,6 +244,7 @@ function FetchXML ($url) {
 		if($Debug) {
 			USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Contents in xmlResult: \n" . var_export($xmlResult, true) ."\n");
 		}
+		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully received XML from '" . $Server . $url."'");
 		return $xmlResult;
 	} else {
 		return false;
@@ -243,7 +253,7 @@ function FetchXML ($url) {
 
 function USMLog ($Type, $Message, $Debugtrace = false) {
 	global $Logfile;
-	$LogEntry = date("y-m-d H:i:s") . ": " . $Message;
+	$LogEntry = date("y-m-d H:i:s") . " [".$Type . "] " . $Message;
 	$_SESSION['Log'][$Type][] = $LogEntry;
 
 	$fp = fopen($Logfile, 'a');
@@ -257,7 +267,7 @@ function USMLog ($Type, $Message, $Debugtrace = false) {
 			$DebugMessage .= "[".$i."] Line number: " . $Debugtrace[$i]['line'] ." in file ". $Debugtrace[$i]['file'] . "\n";	
 			$DebugMessage .= "[".$i."] Arguments: " . var_export($Debugtrace[$i]['args'],true) . "\n";	
 		}			
-		$LogEntry = date("y-m-d H:i:s") . ": " . $DebugMessage;
+		$LogEntry = date("y-m-d H:i:s") . " [".$Type . "] " . $DebugMessage;
 		$_SESSION['Log'][$Type][] = $LogEntry;
 		fwrite($fp, $LogEntry);
 	}
