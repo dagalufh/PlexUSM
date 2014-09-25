@@ -33,5 +33,5 @@ if( (count($_POST['Subtitle']) == "0") or (!isset($_POST['Subtitle'])) ) {
  */
 ?>
 <script>
-	window.parent.location.href = windows.parent.location.href;
+	window.parent.location.href = window.parent.location.href;
 </script>
