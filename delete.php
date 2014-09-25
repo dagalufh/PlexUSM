@@ -6,6 +6,7 @@ session_start();
  *
  * Include the file with the logfunction
  */
+include("settings.php");
 include("functions.php");
 
 /**
