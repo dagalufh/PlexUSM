@@ -555,7 +555,7 @@ echo "</table>";
 						echo "<div class='VideoSubtitle'>Please select a library.";
 						if($FolderCheck === true) {							
 							echo "One or more errors has occured:<br>";
-							foreach($LogArray['error'] as $LogEntry) {
+							foreach($_SESSION['Log']['error'] as $LogEntry) {
 								echo nl2br($LogEntry) . "<br>";
 							}
 						}
@@ -566,7 +566,7 @@ if($Debug) {
 	echo "<div class='VideoBox'>";	
 	echo "<div class='VideoHeadline'>Debug</div>";
 	echo "<div class='VideoSubtitle'>";
-	foreach($LogArray['debug'] as $LogEntry) {
+	foreach($_SESSION['Log']['debug'] as $LogEntry) {
 		echo nl2br($LogEntry) . "<br>";
 	}
 	echo "</div>";
@@ -582,6 +582,10 @@ $totaltime = round($totaltime,2);
 echo "<div class='VideoBox'>";
 echo "<div class='VideoSubtitle Center'>Page Loading Time: </b>" . $totaltime . " seconds.";
 echo "</div></div>";
+/**
+ * Empty the logs after they have been shown to the user.
+ */
+$_SESSION['Log'] = "";
 					?>
 				</div>
 				</td></tr></table>

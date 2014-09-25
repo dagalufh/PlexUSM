@@ -242,9 +242,9 @@ function FetchXML ($url) {
 }
 
 function USMLog ($Type, $Message, $Debugtrace = false) {
-	global $Logfile, $LogArray;
+	global $Logfile;
 	$LogEntry = date("y-m-d H:i:s") . ": " . $Message;
-	$LogArray[$Type][] = $LogEntry;
+	$_SESSION['Log'][$Type][] = $LogEntry;
 
 	$fp = fopen($Logfile, 'a');
 	fwrite($fp, $LogEntry);
@@ -258,7 +258,7 @@ function USMLog ($Type, $Message, $Debugtrace = false) {
 			$DebugMessage .= "[".$i."] Arguments: " . var_export($Debugtrace[$i]['args'],true) . "\n";	
 		}			
 		$LogEntry = date("y-m-d H:i:s") . ": " . $DebugMessage;
-		$LogArray[$Type][] = $LogEntry;
+		$_SESSION['Log'][$Type][] = $LogEntry;
 		fwrite($fp, $LogEntry);
 	}
 	
