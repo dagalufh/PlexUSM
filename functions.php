@@ -257,7 +257,7 @@ function USMLog ($Type, $Message, $Debugtrace = false) {
 	$_SESSION['Log'][$Type][] = $LogEntry;
 
 	$fp = fopen($Logfile, 'a');
-	fwrite($fp, $LogEntry);
+	fwrite($fp, $LogEntry . "\n");
 	
 	
 	if($Debugtrace !== false) {
@@ -269,7 +269,7 @@ function USMLog ($Type, $Message, $Debugtrace = false) {
 		}			
 		$LogEntry = date("y-m-d H:i:s") . " [".$Type . "] " . $DebugMessage;
 		$_SESSION['Log'][$Type][] = $LogEntry;
-		fwrite($fp, $LogEntry);
+		fwrite($fp, $LogEntry . "\n");
 	}
 	
 	fclose($fp);	
