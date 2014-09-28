@@ -7,7 +7,7 @@ set_time_limit(60);
 
 /* Only modify the below 3 settings to match your setup.*/
 $Server = "http://127.0.0.1:32400";
-$DevToolsSecret = "WebtoolPUSM";
+$DevToolsSecret = "YourSecretHere";
 $ItemsPerPage = 5;
 
 
