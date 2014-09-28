@@ -5,6 +5,14 @@ $startarray = explode(" ", $starttime);
 $starttime = $startarray[1] + $startarray[0];
 /**
   * Changelog
+  * V0.5.0
+  * Moved away from features that required PHP to have access to other places on your harddrive.
+  * These features are handled by DevTools from now on. (Deletion of files, file exists)
+  * Currently requires DevTools v.0.0.0.5 made by Dane22 on the Plex Forums
+  * Modified the settings.php do reflect this change. Now only contains 3 settings that a user should fiddle with.
+  * Continued in making the presentation better.
+  * Improved the logging and presentation of the same.
+  *
  * V0.4.2
  * Added some logging
  * Corrected in Settings.php to append with localhost, with a lowercase "l".
@@ -187,7 +195,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 				 */
 
 					$CurrentVideo = new Video($xmlrowsub['key'],$xmlrowsub['title']);
-					USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found Show: '" . $xmlrowsub['title'] ."'");
+					USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found Show: '" . $xmlrowsub['title'] ."'");
 					$CurrentVideo->setLibraryID($CurrentLibraryID);
 					$CurrentVideo->setType($xmlrowsub['type']);
 					$CurrentVideo->setRatingKey($xmlrowsub['ratingKey']);
@@ -227,7 +235,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 
 					$CurrentMediaPart= $xmlrowsub2->MediaItem->MediaPart;
 					$CurrentVideo = new Video($xmlrowsub2->attributes()->id,$xmlrowsub2->attributes()->title);
-					USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found Movie: '" . $xmlrowsub2->attributes()->title ."'");
+					USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found Movie: '" . $xmlrowsub2->attributes()->title ."'");
 					//print_r($xmlrowsub2);
 					//echo "<br><br>";
 					/**
@@ -279,12 +287,12 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 									$LocalSubtitle = true;
 								}
 								if($_SESSION['Option_HideLocal']['set'] === false) { 									
-									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $subtitle->attributes()->codec));
-									USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
+									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] .  $Folder[1], $subtitle->attributes()->codec));
+									USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . $Folder[1] ."'");
 								} else {
 									if($LocalSubtitle === false) {
-										$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $subtitle->attributes()->codec));
-										USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
+										$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] .  $Folder[1], $subtitle->attributes()->codec));
+										USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] .  $Folder[1] ."'");
 									}
 								}
 
@@ -393,12 +401,11 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
 /**
 * Get the libraries that are in the database and present them to the user.
 */ 
-echo "<table cellspacing=0 cellpadding=0 style='width: 100%'><tr class='headline'>";
-if($_SESSION['Option_HideID']['set'] === false) {
-	echo "<td>ID</td>";
-}	
-echo "<td>Title</td></tr>";
-//$xml = simplexml_load_file($Server . '/library/sections');
+echo "<div class='VideoBox'>";	
+echo "<div class='VideoHeadline'>Libraries</div>";
+echo "<div class='VideoSubtitle'>";
+echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
+
 $xml = FetchXML('/library/sections');
 foreach($xml as $xmlrow) {
 	$Section = $xmlrow->attributes();	
@@ -411,32 +418,37 @@ foreach($xml as $xmlrow) {
 		$LibraryName = "<b>" . $Section->title . "</b>";
 	}
 	echo "<tr class='hovering'>";
-	if($_SESSION['Option_HideID']['set'] === false) {
-		echo "<td class='mainText'>".$Section->key."</td>";
-	}
 	echo "<td class='mainText'><a href='?libraryID=".$Section->key."&startLimit=0'>".$LibraryName."</a></td></tr>";
 
 }
 echo "</table>";
-echo "<br>";
+	echo "</div>";
+	echo "</div>";
+
 
 if($CurrentLibraryID !== false) {
-	echo "<br>";
 	echo "<form name='searchForm' method='GET' action=''>";
+	echo "<div class='VideoBox'>";	
+	echo "<div class='VideoHeadline'>Search: ".$CurrentLibraryName."</div>";
+	echo "<div class='VideoSubtitle'>";	
 	echo "<input type='hidden' name='libraryID' value='".$CurrentLibraryID."'>";
 	echo "<input type='hidden' name='startLimit' value='0'>";
 	echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-	echo "<tr class='headline'><td>Search: ".$CurrentLibraryName."</td></tr>";
 	echo "<tr><td class='mainText'>Enter title to search for:</td></tr>";
 	echo "<tr><td class='mainText'><input type='text' name='searchCriteria' value='".$Searchstring."'></td></tr>";
 	echo "<tr><td class='mainText'><input type='submit'></td></tr>";
 	echo "</table>";
+	echo "</div>";
+	echo "</div>";
 	echo "</form>";
+	
 }
-echo "<br>";
+
 echo "<form name='optionsForm' method='post' action=''>";
+echo "<div class='VideoBox'>";	
+echo "<div class='VideoHeadline'>Options</div>";
+echo "<div class='VideoSubtitle'>";
 echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-echo "<tr class='headline'><td>Options</td></tr>";
 echo "<tr><td class='mainText'><input type='checkbox' name='HideLocal' ".$_SESSION['Option_HideLocal']['checked'].">Hide local subtitles</td></tr>";
 echo "<tr><td class='mainText'><input type='checkbox' name='HideEmpty' ".$_SESSION['Option_HideEmpty']['checked'].">Hide videos without subtitles</td></tr>";	
 echo "<tr><td class='mainText'><input type='checkbox' name='HideIntegrated' ".$_SESSION['Option_HideIntegrated']['checked'].">Hide integrated subtitles</td></tr>";
@@ -444,30 +456,10 @@ echo "<tr><td class='mainText'><input type='checkbox' name='OnlyMultiple' ".$_SE
 echo "<tr><td class='mainText'><input type='text' size='2' name='ItemsPerPage' value='".$_SESSION['Option_ItemsPerPage']['value']."'>Items per page</td></tr>";
 echo "<tr><td class='mainText'><input type='submit' name='SaveOptions' value='Save'></td></tr>";
 echo "</table>";
+echo "</div>";
+echo "</div>";
 echo "</form>";
 echo "<br>";
-echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-echo "<tr class='headline'><td>Recommended usage</td></tr>";
-echo "<tr><td class='mainText'>";
-echo "1. Disable the subtitles agents<br>";
-echo "2. Remove the subtitles you want via this script.<br>";
-echo "3. Go to the movies you altered and update them, searching for new metadata.<br>";
-echo "4. Re-enable subtitle agents if you want. You should now have a cleaner list of subtitles.<br><br>";
-echo "</td></tr>";
-echo "<tr class='headline'><td>Information & Features</td></tr>";		
-echo "<tr><td class='mainText'>";
-echo "This is an unofficial manager for subtitles.<br>";
-echo "<b>Usage is on your own risk!</b><br><br>";
-echo "Current features:<br>";
-echo "<ul>";
-echo "<li>List all subtitles for a movie/tv show in your library. Both local (next to the movie in it's folder or one subfolder) and in the c:\users appdata folder.</li>";
-echo "<li>View the subtitle and see it's contents to determine what to delete.</li>";
-echo "<li>Delete selected subtitle from the harddrive.</li>";
-echo "<li>Search for videos.</li>";
-echo "<li>Options for output.</li>";
-echo "</ul>";
-echo "</td></tr>";
-echo "</table>";
 					?>
 				</div>
 				</td><td class="BoxTable_td">
@@ -529,9 +521,9 @@ echo "</table>";
 											$View = "<a target=\"_NEW\" href=\"ReadFile.php?FileToOpen=".$Subtitle->getPath()."\">View</a> ";
 											$Checkbox = "<input type='checkbox' name='Subtitle[]' value=\"".$Subtitle->getPath()."\">";
 										}
-
-										if( (file_exists($Subtitle->getPath()) === false) and ($Subtitle->getPath() !== false) ) {
-											USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find '" . $Subtitle->getPath()."' on disk.");
+										
+										if( (exists($Subtitle->getPath()) === false) and ($Subtitle->getPath() !== false) ) {
+											USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find '" . $Subtitle->getPath()."' on disk.");
 											$Exists = "Not found on disk. Please update Plex library.";
 											$Checkbox = "";
 											$View = "";
@@ -555,13 +547,29 @@ echo "</table>";
 
 						echo "<div class='VideoBox'>";	
 						echo "<div class='VideoHeadline'>Welcome</div>";
-						echo "<div class='VideoSubtitle'>Please select a library.";
-						if($FolderCheck === true) {							
-							echo "One or more errors has occured:<br>";
-							foreach($_SESSION['Log']['error'] as $LogEntry) {
-								echo nl2br($LogEntry) . "<br>";
-							}
-						}
+						echo "<div class='VideoSubtitle'>";
+						echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
+								
+						echo "<tr><td class='mainText'>";
+						echo "This is an unofficial manager for subtitles.<br>";
+						echo "<b>Usage is on your own risk!</b><br><br>";
+						echo "Current features:<br>";
+						echo "<ul>";
+						echo "<li>List all subtitles for a movie/tv show in your library. Both local (next to the movie in it's folder or one subfolder) and in the c:\users appdata folder.</li>";
+						echo "<li>View the subtitle and see it's contents to determine what to delete.</li>";
+						echo "<li>Delete selected subtitle from the harddrive.</li>";
+						echo "<li>Search for videos.</li>";
+						echo "<li>Options for output.</li>";
+						echo "</ul>";
+						echo "</td></tr>";
+						echo "<tr class='headline'><td>Recommended usage</td></tr>";
+						echo "<tr><td class='mainText'>";
+						echo "1. Disable the subtitles agents<br>";
+						echo "2. Remove the subtitles you want via this script.<br>";
+						echo "3. Go to the movies you altered and update them, searching for new metadata.<br>";
+						echo "4. Re-enable subtitle agents if you want. You should now have a cleaner list of subtitles.";
+						echo "</td></tr>";
+						echo "</table>";
 						echo "</div>";
 						echo "</div>";
 					}
@@ -576,6 +584,26 @@ if($Debug) {
 	echo "</div>";
 }
 
+if(count($_SESSION['Log']['error'])>0) {				
+	echo "<div class='VideoBox'>";	
+	echo "<div class='VideoHeadline'>Errorlog</div>";
+	echo "<div class='VideoSubtitle'>";
+	foreach($_SESSION['Log']['error'] as $LogEntry) {
+		echo nl2br($LogEntry) . "<br>";
+	}
+	echo "</div>";
+	echo "</div>";
+}
+
+echo "<div class='VideoBox'>";	
+echo "<div class='VideoHeadline'>Infolog</div>";
+echo "<div class='VideoSubtitle'>";
+foreach($_SESSION['Log']['info'] as $LogEntry) {
+		echo nl2br($LogEntry) . "<br>";
+	}
+	echo "</div>";
+
+echo "</div>";
 
 $endtime = microtime();
 $endarray = explode(" ", $endtime);
@@ -583,8 +611,8 @@ $endtime = $endarray[1] + $endarray[0];
 $totaltime = $endtime - $starttime;
 $totaltime = round($totaltime,2);
 echo "<div class='VideoBox'>";
-echo "<div class='VideoSubtitle Center'>Page Loading Time: </b>" . $totaltime . " seconds.";
-echo "</div></div>";
+echo "<div class='VideoSubtitle Center'>Page Loading Time: </b>" . $totaltime . " seconds.</div>";
+echo "</div>";
 /**
  * Empty the logs after they have been shown to the user.
  */

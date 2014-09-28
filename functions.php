@@ -31,7 +31,7 @@ function get_show_seasons($ShowKey) {
 	foreach($xmlsub as $xmlrowsub) {
 		$Season = $xmlrowsub->attributes();
 		$CurrentVideo = new Video($Season->key,$Season->title);
-		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found season: '" . $Season->title ."'");
+		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found season: '" . $Season->title ."'");
 		$CurrentVideo->setType("show");
 		$CurrentVideo->setParentID($ShowKey);
 		$CurrentVideo->setLibraryID($_GET['libraryID']);
@@ -51,7 +51,7 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 		//var_dump($xmlrowsub2);
 
 		$Episode = $xmlrowsub->attributes();
-		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found episode: '" . $Episode->title ."'");
+		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found episode: '" . $Episode->title ."'");
 		
 		$CurrentVideo = new Video($Episode->key,$Episode->title);
 		$CurrentVideo->setType("movie");
@@ -127,12 +127,12 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 							$LocalSubtitle = true;
 						}
 						if($_SESSION['Option_HideLocal']['set'] === false) { 
-							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $Subtitle->attributes()->codec));
-							USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
+							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . $Folder[1], $Subtitle->attributes()->codec));
+							USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] .  $Folder[1] ."'");
 						} else {
 							if($LocalSubtitle === false) {
-								$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . "/" . $Folder[1], $Subtitle->attributes()->codec));
-								USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . "/" . $Folder[1] ."'");
+								$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0]  . $Folder[1], $Subtitle->attributes()->codec));
+								USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . $Folder[1] ."'");
 							}
 						}
 					} else {
@@ -185,7 +185,7 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 }
 
 function CheckSettings() {
-	global $Server, $PathToPlexMediaFolder, $AppendPathWith, $Debug;
+	global $Server, $PathToPlexMediaFolder, $AppendPathWith, $Debug, $DevToolsSecret, $CorrectDevToolsVersion;
 	$ErrorOccured = false;
 	
 	if(!extension_loaded('simplexml')) {
@@ -198,29 +198,45 @@ function CheckSettings() {
 		$ErrorOccured = true;
 	}
 	
-	if(!$ErrorOccured) {
-		$Settings = FetchXML("/:/plugins/com.plexapp.plugins.DevTools/prefs");
-		//$Settings = simplexml_load_file($Server. "/:/plugins/com.plexapp.plugins.DevTools/prefs");
-		if($Settings !== false) {
-			foreach($Settings as $SettingsItem) {
-
-				if($SettingsItem->attributes()->id == "Home") {
-					$PathToPlexMediaFolder = preg_replace("/\\\\/i", "/", $SettingsItem->attributes()->value) . $AppendPathWith;
-				}
-			}
-		}
-		if($Debug) {
-			USMLog("debug", "Value of PathToPlexMediaFolder:'" . $PathToPlexMediaFolder ."'", debug_backtrace());
-		}	
-
-		if(file_exists($PathToPlexMediaFolder) === false) {
-			USMLog("error", "The path: '" . $PathToPlexMediaFolder . "' does not exist.");
+	/**
+	 * Check version of DevTools. Currently using 0.0.0.4
+	 */
+	$DevToolsVersion = file_get_contents($Server . "/utils/devtools?Func=GetVersion&Secret=" . $DevToolsSecret);
+	if($DevToolsVersion === false) {
+		USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Found no DevTools. Please download from Plex Forums or Unsupported Appstore.");
+		$ErrorOccured = true;	
+	} else {
+		if($DevToolsVersion >= $CorrectDevToolsVersion) {
+			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found correct DevTools. Found: [". $DevToolsVersion . "]");
+		} else{
+			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Wrong DevTools found: Required: [" . $CorrectDevToolsVersion . "] Found: [". $DevToolsVersion . "] Please download from Plex Forums or Unsupported Appstore.");
 			$ErrorOccured = true;
 		}
-		
-		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] PathToPlexMediaFolder set to: '" . $PathToPlexMediaFolder ."'");
 	}
+	
+	if(!$ErrorOccured) {
 
+		$PathToPlexMediaFolder = preg_replace("/\\\\/i", "/",file_get_contents($Server . "/utils/devtools?Func=GetLibPath&Secret=" . $DevToolsSecret)) . $AppendPathWith;
+		if($PathToPlexMediaFolder !== false) {
+			// Do a file_exists on the received path to verify it.
+			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Set PathToPlexMediaFolder to: '" . $PathToPlexMediaFolder ."'");
+		} else{
+			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to get the path to Media folder: '" . $PathToPlexMediaFolder ."'");
+		}
+		
+		if($Debug) {
+			USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Value of PathToPlexMediaFolder:'" . $PathToPlexMediaFolder ."'", debug_backtrace());
+		}	
+		
+		
+		if(exists($PathToPlexMediaFolder) === false) {
+			USMLog("error", " The path: '" . $PathToPlexMediaFolder . "' does not exist.");
+			$ErrorOccured = true;
+		} else {
+			USMLog("info", " The path: '" . $PathToPlexMediaFolder . "' is verified.");
+		}
+		
+	}
 	
 	return $ErrorOccured;	
 }
@@ -232,19 +248,19 @@ function FetchXML ($url) {
 	$xmlResult = "";
 	$xmlResult = simplexml_load_file($Server . $url);
 	if(!$xmlResult) {
-		USMLog("error", "Failed to fetch xml from path: '" . $Server . $url."'");
+		USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Failed to fetch xml from path: '" . $Server . $url."'");
 		$ErrorOccured = true;	
 	}
 	
 	if($Debug) {
-		USMLog("debug", "Received request to fetch xml from: '" . $Server . $url."'", debug_backtrace());
+		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Received request to fetch xml from: '" . $Server . $url."'", debug_backtrace());
 	}
 	
 	if(!$ErrorOccured) {
 		if($Debug) {
 			USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Contents in xmlResult: \n" . var_export($xmlResult, true) ."\n");
 		}
-		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully received XML from '" . $Server . $url."'");
+		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully received XML from '" . $Server . $url."'");
 		return $xmlResult;
 	} else {
 		return false;
@@ -253,8 +269,9 @@ function FetchXML ($url) {
 
 function USMLog ($Type, $Message, $Debugtrace = false) {
 	global $Logfile;
-	$LogEntry = date("y-m-d H:i:s") . " [".$Type . "] " . $Message;
-	$_SESSION['Log'][$Type][] = $LogEntry;
+	$Timestamp = date("y-m-d H:i:s");
+	$LogEntry = $Timestamp . " [".$Type . "] " . $Message;
+	$_SESSION['Log'][$Type][] = $Timestamp . " [".$Type . "] " . substr($Message,strpos($Message,"]")+1);
 
 	$fp = fopen($Logfile, 'a');
 	fwrite($fp, $LogEntry . "\n");
@@ -273,6 +290,21 @@ function USMLog ($Type, $Message, $Debugtrace = false) {
 	}
 	
 	fclose($fp);	
+}
+
+function exists($Path) {
+	global $Server, $DevToolsSecret;
+
+	if(strpos($Path,"file://")!==false) {
+		$Path = substr($Path,7);
+	}
+	$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=PathExists&Secret=" . $DevToolsSecret . "&Path=".preg_replace("/ /", "%20", $Path));
+	
+	if( ($ReturnValue == "false") or ($ReturnValue === false) ) {
+		return false;
+	} else {
+		return $ReturnValue;
+	}
 }
 // check if com.plexapp.agents.opensubtitles.xml or com.plexapp.agents.podnapisi.xml exists in Hash/Contents/Subtitle Contributions/ if so, parse the hell out of it.
 // check if subtitle->name contains /sid- (atleast for opensubtitles. Check if this applies to podnapasi aswell)

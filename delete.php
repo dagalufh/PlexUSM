@@ -16,14 +16,19 @@ if( (count($_POST['Subtitle']) == "0") or (!isset($_POST['Subtitle'])) ) {
 	USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Subtitle POST empty.\n");
 } else {
 	foreach ($_POST['Subtitle'] as $Subtitle) {
-		if(file_exists($Subtitle)) {
-			if (unlink($Subtitle)) {
-				USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully deleted file: " . $Subtitle . "\n");
+		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Received request to delete file: " . $Subtitle);
+		
+		$CorrectedFilename = preg_replace("/ /", "%20", $Subtitle);
+		
+		if(exists($CorrectedFilename) !== false) {
+			$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=DelFile&Secret=" . $DevToolsSecret . "&File=".$CorrectedFilename);
+			if($ReturnValue == "ok") {
+				USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully deleted file: " . $CorrectedFilename);
 			} else {
-				USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Failed deleting file: " . $Subtitle . "\n");
+				USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Failed deleting file: " . $CorrectedFilename . " Returnvalue: " . $ReturnValue);
 			}
 		} else {
-			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find the file for deletion: " . $Subtitle . "\n");
+			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find the file for deletion: " . $CorrectedFilename . "\n");
 		}
 	}
 }
