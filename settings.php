@@ -7,7 +7,7 @@ set_time_limit(60);
 
 /* Only modify the below 3 settings to match your setup.*/
 $Server = "http://127.0.0.1:32400";
-$DevToolsSecret = "YourSecretHere";
+$DevToolsSecret = "WebtoolPUSM";
 $ItemsPerPage = 5;
 
 
@@ -17,7 +17,7 @@ $ItemsPerPage = 5;
  */
 $PathToPlexMediaFolder = "";
 $AppendPathWith = "/Media/localhost/";
-$CorrectDevToolsVersion = "0.0.0.5";
+$CorrectDevToolsVersion = "0.0.0.6";
 $Logfile = "plexusmerror.log";
 $LogArray = array();
 $Debug = false; // use this to force detailed logging.
