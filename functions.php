@@ -4,6 +4,22 @@
 */
 
 /**
+ * This function splits a filename and returns the filename and path in an array.
+ */
+function SepFilename($filename) {
+	
+	$filename = explode("/",$filename);
+	$URL = "";
+	for($i=0;$i<count($filename)-1;$i++) {
+		$URL = $URL . $filename[$i] . "/";
+		}
+	$name[0] = $URL;
+	$name[1] = $filename[count($filename)-1];
+
+	return $name;
+}
+
+/**
  * Custom sort function for sorting videos based on title.
  */
 function SortVideos( $a, $b ) {
@@ -125,19 +141,20 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 							$Folder[0] = $PathToPlexMediaFolder . substr($Folder[0],8);
 						} else {
 							$LocalSubtitle = true;
+							
 						}
 						if($_SESSION['Option_HideLocal']['set'] === false) { 
-							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . $Folder[1], $Subtitle->attributes()->codec));
+							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] . $Folder[1], $Subtitle->attributes()->codec, $LocalSubtitle));
 							USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] .  $Folder[1] ."'");
 						} else {
 							if($LocalSubtitle === false) {
-								$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0]  . $Folder[1], $Subtitle->attributes()->codec));
+								$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, $Folder[1], $Language, $Folder[0]  . $Folder[1], $Subtitle->attributes()->codec, $LocalSubtitle));
 								USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . $Folder[1] ."'");
 							}
 						}
 					} else {
 						if($_SESSION['Option_HideIntegrated']['set']  === false) {
-							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, "Integrated subtitle", $Language,  false, $Subtitle->attributes()->codec));	
+							$CurrentVideo->setNewSubtitle(new Subtitle($Subtitle->attributes()->id, "Integrated subtitle", $Language,  false, $Subtitle->attributes()->codec, $LocalSubtitle));	
 							
 						}
 					}
@@ -199,7 +216,7 @@ function CheckSettings() {
 	}
 	
 	/**
-	 * Check version of DevTools. Currently using 0.0.0.4
+	 * Check version of DevTools. Currently using 0.0.0.6
 	 */
 	$DevToolsVersion = file_get_contents($Server . "/utils/devtools?Func=GetVersion&Secret=" . $DevToolsSecret);
 	if($DevToolsVersion === false) {
@@ -209,6 +226,7 @@ function CheckSettings() {
 		if($DevToolsVersion >= $CorrectDevToolsVersion) {
 			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found correct DevTools. Found: [". $DevToolsVersion . "]");
 		} else{
+			/* Add Stylesheet on this output */
 			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Wrong DevTools found: Required: [" . $CorrectDevToolsVersion . "] Found: [". $DevToolsVersion . "] Please download from Plex Forums or Unsupported Appstore.");
 			$ErrorOccured = true;
 		}
@@ -220,7 +238,7 @@ function CheckSettings() {
 		if($PathToPlexMediaFolder !== false) {
 			// Do a file_exists on the received path to verify it.
 			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Set PathToPlexMediaFolder to: '" . $PathToPlexMediaFolder ."'");
-		} else{
+		} else {
 			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to get the path to Media folder: '" . $PathToPlexMediaFolder ."'");
 		}
 		
