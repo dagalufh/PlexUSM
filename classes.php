@@ -170,13 +170,15 @@ class Subtitle {
 	private $Language;
 	private $Path;
 	private $Source;
+	private $IsLocal;
 
-	function __construct($ID, $Filename, $Language,$Path,$Source) {
+	function __construct($ID, $Filename, $Language,$Path,$Source, $IsLocal) {
 		$this->Filename = $Filename;
 		$this->ID = $ID;
 		$this->Language = $Language;
 		$this->Path = $Path;
 		$this->Source = $Source;
+		$this->IsLocal = $IsLocal;
 	}
 
 	public function getFilename() {
@@ -185,6 +187,10 @@ class Subtitle {
 	
 	public function getID() {
 		return $this->ID;
+	}
+	
+	public function getIsLocal() {
+		return $this->IsLocal;
 	}
 
 	public function getLanguage() {
