@@ -5,6 +5,12 @@ $startarray = explode(" ", $starttime);
 $starttime = $startarray[1] + $startarray[0];
 /**
   * Changelog
+  * V0.5.1
+  * Added Select / Deselect all to subtitlelists.
+  * Changed requirements to DevTools v0.0.0.6 after implementing ShowSRT function that uses DevTools to read the file.
+  * Removed "ListDir.php" as it's not needed anymore.
+  * Modified "ReadFile.php" to fetch the file to be viewed from DevTools instead of accessing it directly to make it work on linux etc.
+  *
   * V0.5.0
   * Moved away from features that required PHP to have access to other places on your harddrive.
   * These features are handled by DevTools from now on. (Deletion of files, file exists)
@@ -40,8 +46,6 @@ $starttime = $startarray[1] + $startarray[0];
  * First release, lists all subtitles in a rather crude maner.
  *  
  */ 
-
-include("ListDir.php");
 include("classes.php");
 include("settings.php");
 include("functions.php");
@@ -155,7 +159,6 @@ if(isset($_GET['searchCriteria'])) {
 
 if(isset($_GET['ShowKey'])) {
 	$ShowKey= $_GET['ShowKey'];
-	//$showID_additionalquery = "parent_id='".$showID."'";
 	$AdditionalLink_ShowKey = "&ShowKey=".$_GET['ShowKey'];
 }
 
@@ -178,12 +181,10 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 	} else {
 
 		/** For the current section, list all the movies */
-		//$xmlsub = simplexml_load_file($Server . '/library/sections/'.$CurrentLibraryID.'/all');
 		$xmlsub = FetchXML('/library/sections/'.$CurrentLibraryID.'/all');
 		foreach($xmlsub as $xmlrowsub) {	
 			$AddVideo = true;
 
-			//$xmlsub2 = simplexml_load_file($Server.$xmlrowsub['key'].'/tree');
 			$xmlsub2 = FetchXML($xmlrowsub['key'].'/tree');
 			if ($xmlrowsub['type'] == "show") {
 				/**
@@ -204,7 +205,6 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 					$CurrentVideo->setActiveSubtitle(0);
 					$MatchingEpisodes = false;
 
-					//$SeasonXML = simplexml_load_file($Server . $CurrentVideo->getID() . '/all');
 					$SeasonXML = FetchXML($CurrentVideo->getID() . '/all');
 					foreach($SeasonXML as $Season) {
 						if(isset($Season->attributes()->index) !== false) {
@@ -236,8 +236,6 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 					$CurrentMediaPart= $xmlrowsub2->MediaItem->MediaPart;
 					$CurrentVideo = new Video($xmlrowsub2->attributes()->id,$xmlrowsub2->attributes()->title);
 					USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found Movie: '" . $xmlrowsub2->attributes()->title ."'");
-					//print_r($xmlrowsub2);
-					//echo "<br><br>";
 					/**
 					 * Check if we have a searchstring, and if so, check if the current title matches it.
 					 */
@@ -247,7 +245,6 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 						}
 					}
 
-					//$ActiveSubtitleXML = simplexml_load_file($Server.$xmlrowsub['key']);
 					$ActiveSubtitleXML = FetchXML($xmlrowsub['key']);
 					foreach($ActiveSubtitleXML as $ActiveSubtitle) { 
 						$Streams = $ActiveSubtitle->Media->Part->Stream;
@@ -287,18 +284,18 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 									$LocalSubtitle = true;
 								}
 								if($_SESSION['Option_HideLocal']['set'] === false) { 									
-									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] .  $Folder[1], $subtitle->attributes()->codec));
+									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] .  $Folder[1], $subtitle->attributes()->codec, $LocalSubtitle));
 									USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] . $Folder[1] ."'");
 								} else {
 									if($LocalSubtitle === false) {
-										$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] .  $Folder[1], $subtitle->attributes()->codec));
+										$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, $Folder[1], $Language, $Folder[0] .  $Folder[1], $subtitle->attributes()->codec, $LocalSubtitle));
 										USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found subtitle: '" . $Folder[0] .  $Folder[1] ."'");
 									}
 								}
 
 							} else {
 								if($_SESSION['Option_HideIntegrated']['set']  === false) {
-									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, "Integrated subtitle", $Language,  false, $subtitle->attributes()->codec));	
+									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, "Integrated subtitle", $Language,  false, $subtitle->attributes()->codec, $LocalSubtitle));	
 								}
 							}
 						}
@@ -377,15 +374,39 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
 		<title>Plex Unofficial Subtitle Manager</title>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 		<link rel="stylesheet" type="text/css" href="style.css">
-		<script>
+		<script type="text/javascript">
 			function confirmSubmit(formname, option)
 			{
+				var AnyBoxesChecked = false;
+				checkboxes = document.forms[formname].getElementsByTagName('input');
+				for (var i = 0; i < checkboxes.length; i++) {
+					AnyBoxesChecked = checkboxes[i].checked	
+					if(AnyBoxesChecked == true) { 
+						break;
+					}
+				}
+				if(AnyBoxesChecked == false) {
+					return false;
+				}
+				
 				var agree=confirm("Are you sure you wish to delete the selected subtitle(s)?");
 				if (agree) {
 					document.getElementById(formname).action = 'delete.php';
 					document.getElementById(formname).submit();
 				} else {
 					return false ;
+				}
+			}
+			
+			function SelectDeselectAll(formname, toggle)
+			{
+				
+				var checkboxes = new Array();
+				checkboxes = document.forms[formname].getElementsByTagName('input');
+				for (var i = 0; i < checkboxes.length; i++) {
+					if (checkboxes[i].type === 'checkbox') {
+						checkboxes[i].checked = toggle;
+					}
 				}
 			}
 		</script>
@@ -483,21 +504,17 @@ echo "<br>";
 								echo "<div class='VideoHeadline'><a href='index.php?libraryID=".$Video->getLibraryID()."&startLimit=0&ShowKey=".$Video->getID()."&ParentKey=".$Video->getParentID()."'>".$Video->getTitle()."</a></div>";
 							} else {
 
-								echo "<form id='".(string)$Video->getID()."' name='".(string)$Video->getID()."' method='POST' target='WorkFrame'>";
+								echo "<form id='Form_".(string)$Video->getID()."' name='Form_".(string)$Video->getID()."' method='POST' target='WorkFrame'>";
 
-								if($_SESSION['Option_HideID']['set'] === false) {
-									//echo $Video->getRatingKey() . "." . $Video->getSeasonIndex() . "." . $Video->getEpisodeIndex();
-								}
 								if(strlen($Video->getTitleShow())>0) {
 									$AdditionalShowOutput = "<span class='Shadow'>" .(string)$Video->getTitleShow() ."/". (string)$Video->getTitleSeason() . "/</span>";	
 								}
 								echo "<div class='VideoHeadline'>" . $AdditionalShowOutput . $Video->getTitle() . "</div>";
 								echo "<div class='VideoPath'>".$Video->getPath()."</div>";
-
+								
 								/**
-					 	 * Print out subtitles if it's not a librarytype 2.
-					 	 */ 
-
+								 * Print out subtitles if it's not a librarytype 2.
+								 */ 
 								foreach ($Video->getSubtitles() as $SubtitleLanguageArray) {	
 									foreach ($SubtitleLanguageArray as $Subtitle) {
 										$Language = "";
@@ -519,7 +536,7 @@ echo "<br>";
 
 										if($Subtitle->getPath() !== false) {
 											$View = "<a target=\"_NEW\" href=\"ReadFile.php?FileToOpen=".$Subtitle->getPath()."\">View</a> ";
-											$Checkbox = "<input type='checkbox' name='Subtitle[]' value=\"".$Subtitle->getPath()."\">";
+											$Checkbox = "<input type='checkbox' name='Subtitle[]' value=\"".$Subtitle->getPath()."\">";	
 										}
 										
 										if( (exists($Subtitle->getPath()) === false) and ($Subtitle->getPath() !== false) ) {
@@ -539,7 +556,7 @@ echo "<br>";
 									}
 								}
 								echo "</form>";
-								echo "<div class='VideoBottom'><span class='link' onclick='confirmSubmit(\"".$Video->getID()."\");'>Delete Selected</span></div>";
+								echo "<div class='VideoBottom'><span class='link' onclick=\"SelectDeselectAll('Form_".(string)$Video->getID()."', true)\">Select All</span> - <span class='link' onclick=\"SelectDeselectAll('Form_".(string)$Video->getID()."', false)\">Clear Selection</span> - <span class='link' onclick='confirmSubmit(\"Form_".$Video->getID()."\");'>Delete Selected</span></div>";
 							}
 							echo "</div>";
 						}
@@ -549,7 +566,6 @@ echo "<br>";
 						echo "<div class='VideoHeadline'>Welcome</div>";
 						echo "<div class='VideoSubtitle'>";
 						echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-								
 						echo "<tr><td class='mainText'>";
 						echo "This is an unofficial manager for subtitles.<br>";
 						echo "<b>Usage is on your own risk!</b><br><br>";
