@@ -5,22 +5,18 @@
 
 /**
  * This function splits a filename and returns the filename and path in an array.
+ * Updated to a more efficient version.
  */
 function SepFilename($filename) {
+	$filename = preg_replace("/\\\\/i", "/", $filename);
+	$name[0] = substr($filename,0,strripos($filename,"/")+1);
+	$name[1] = substr($filename,strripos($filename,"/")+1);
 	
-	$filename = explode("/",$filename);
-	$URL = "";
-	for($i=0;$i<count($filename)-1;$i++) {
-		$URL = $URL . $filename[$i] . "/";
-		}
-	$name[0] = $URL;
-	$name[1] = $filename[count($filename)-1];
-
 	return $name;
 }
 
 /**
- * Custom sort function for sorting videos based on title.
+ * Custom sort function for sorting videos based on different criteria.
  */
 function SortVideos( $a, $b ) {
 	if( ($a->getRatingKey()>0) and ($b->getRatingKey()>0) ){
@@ -39,10 +35,13 @@ function SortVideos( $a, $b ) {
 }
 
 
-
+/**
+ * This function fetches the seasons that belong to the ShowKey (/library/metadata/xxxxx/children) provided.
+ * It then populates the globally used $ArrayVideos with the found season.
+ */
 function get_show_seasons($ShowKey) {
 	global $Server, $ArrayVideos;
-	//$xmlsub = simplexml_load_file($Server . $ShowKey . '/all');
+	
 	$xmlsub = FetchXML($ShowKey . '/all');
 	foreach($xmlsub as $xmlrowsub) {
 		$Season = $xmlrowsub->attributes();
@@ -56,16 +55,18 @@ function get_show_seasons($ShowKey) {
 	}
 }
 
+
+/**
+ * This functions lists all episodes for the provided show and season.
+ */
 function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", $SearchString = false) {
 	global $Server, $ArrayVideos, $PathToPlexMediaFolder, $SearchSubtitleProviderFiles;
 	$MatchedEpisodes = false;
-
-	//$xmlsub = simplexml_load_file($Server.$ShowKey);
+	
 	$xmlsub = FetchXML($ShowKey);
 	foreach($xmlsub as $xmlrowsub) {
 		$AddVideo = true;
-		//var_dump($xmlrowsub2);
-
+		
 		$Episode = $xmlrowsub->attributes();
 		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found episode: '" . $Episode->title ."'");
 		
@@ -78,22 +79,20 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 				continue;
 			}
 			$MatchedEpisodes = true;
-
 		}
+		
 		/**
-			 * Get Season Number
-			 */
+		 * Get some information about the season. Title, index(number) and RatingKey.
+		 * A object can be provided if we are searching, but otherwise it's not provided.
+		 */
 		if($SeasonIndex !== false ) {
 			$CurrentVideo->setSeasonIndex($SeasonIndex->index);
 			$CurrentVideo->setTitleShow($ShowRatingKey->getTitle());
 			$CurrentVideo->setTitleSeason($SeasonIndex->title);
 			$CurrentVideo->setRatingKey($ShowRatingKey->getRatingKey());
 		} else {
-			//$Season_XML = simplexml_load_file($Server . $Episode->parentKey . '/tree');
-			
 			$Season_XML = FetchXML($Episode->parentKey);
 			foreach($Season_XML as $Season) {
-				
 				if((int)$Season->attributes()->ratingKey == (int)$Episode->parentRatingKey) {
 					$CurrentVideo->setSeasonIndex($Season->attributes()->index);
 					$CurrentVideo->setTitleSeason($Season->attributes()->title);
@@ -106,7 +105,9 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 						
 		}
 		
-		//$ActiveSubtitleXML = simplexml_load_file($Server.$Episode->key);
+		/**
+		 * Figure out what subtitle is selected in plex.
+		 */
 		$ActiveSubtitleXML = FetchXML($Episode->key);
 		foreach($ActiveSubtitleXML as $ActiveSubtitle) { 
 			$Streams = $ActiveSubtitle->Media->Part->Stream;
@@ -116,8 +117,10 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 				}
 			}	
 		}
-
-		//$xmlsub3 = simplexml_load_file($Server.$Episode->key . '/tree');
+		
+		/**
+		 * Fetch subtitles for  the current episode
+		 */
 		$xmlsub3 = FetchXML($Episode->key . '/tree');
 		foreach($xmlsub3 as $xmlrowsub3) {
 			$CurrentMediaPart= $xmlrowsub3->MetadataItem->MetadataItem->MediaItem->MediaPart;
@@ -131,11 +134,16 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 					if(strlen($Subtitle->attributes()->language)>0) {
 						$Language = $Subtitle->attributes()->language;
 					}					
+					
+					/**
+					 * If url is set, it's a external subtitle. (agent or local).
+					 * Else it's a integrated one.
+					 */
 					if(isset($Subtitle->attributes()->url)) {
 						$LocalSubtitle = false;
 						$Folder = SepFilename(preg_replace("/\\\\/i", "/", $Subtitle->attributes()->url));
 
-						// Subtitles - All of them
+						
 
 						if(strpos($Folder[0],"media://")!==false) {
 							$Folder[0] = $PathToPlexMediaFolder . substr($Folder[0],8);
@@ -162,29 +170,18 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 			}
 		}
 		
-		/** Check if there is duplicates according to .xml file in Subtitle Contributions.
-		
-		foreach ($SearchSubtitleProviderFiles as $Provider) {
-			$HashDirectory = substr($CurrentVideo->getHash(),0,1) . "/" . substr($CurrentVideo->getHash(),1) . ".bundle/Contents/Subtitle Contributions/" . $Provider;
-			if(file_exists($PathToPlexMediaFolder . $HashDirectory)) {
-				//echo "Exists(URL: " . $PathToPlexMediaFolder . $HashDirectory . ")<br>";
-				$SubtitleProviderXML = simplexml_load_file($PathToPlexMediaFolder . $HashDirectory);
-				foreach($SubtitleProviderXML as $SubtitleProvider) {
-					foreach($SubtitleProvider->Subtitle as $Sub) {
-					echo $Sub->attributes()->name;
-					
-					echo "<br>";
-					}
-					//echo $SubtitleProvider->Subtitle->attributes()->media;
-					echo "<br>";echo "<br>";
-					
+		CheckForDuplicates($CurrentVideo);
+		if ($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) {
+			$AddVideo = false;
+			foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
+				 if (count($SubtitleLanguageArray)<2) {
+					/* Current language has less than 2 subtitles */
+					 foreach ($SubtitleLanguageArray as $Subtitle) {
+						 $Subtitle->setHideSubtitle(true);
+					 }
+				} else {
+					 $AddVideo = true;
 				}
-			}
-		}
-		*/
-		foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
-			if(($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) and (count($SubtitleLanguageArray)<2)) {
-				$AddVideo = false;	
 			}
 		}
 
@@ -201,6 +198,10 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 	}
 }
 
+/**
+ * Verify that we can access the server and that devtools is installed.
+ * Also, verify that the PHP is configured right.
+ */
 function CheckSettings() {
 	global $Server, $PathToPlexMediaFolder, $AppendPathWith, $Debug, $DevToolsSecret, $CorrectDevToolsVersion;
 	$ErrorOccured = false;
@@ -216,14 +217,28 @@ function CheckSettings() {
 	}
 	
 	/**
-	 * Check version of DevTools. Currently using 0.0.0.6
+	 * Check that we can access the Plex Media Server
 	 */
-	$DevToolsVersion = file_get_contents($Server . "/utils/devtools?Func=GetVersion&Secret=" . $DevToolsSecret);
-	if($DevToolsVersion === false) {
+	if(VerifyHeader($Server . '/library/sections', "200") === false) {
+	USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to access Plex Media Server on: " . $Server . ".");
+		return true;
+	}
+	
+	/**
+	 * Check version of DevTools and that it is installed.
+	 */
+	$PathToDevToolsVersoin = $Server . "/utils/devtools?Func=GetVersion&Secret=" . $DevToolsSecret;
+	$DevToolsVersion = file_get_contents($PathToDevToolsVersoin);
+	
+	
+	if( ($DevToolsVersion === false) or (VerifyHeader($PathToDevToolsVersoin,"200") === false) ) {
 		USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Found no DevTools. Please download from Plex Forums or Unsupported Appstore.");
 		$ErrorOccured = true;	
 	} else {
-		if($DevToolsVersion >= $CorrectDevToolsVersion) {
+		if($DevToolsVersion == "Error authenticating") {
+			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] DevTools returned authentication error. Please set the same secret in both Settings.php and DevTools preferences.");
+			$ErrorOccured = true;
+		} elseif(version_compare($DevToolsVersion,$CorrectDevToolsVersion,">=")) {
 			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Found correct DevTools. Found: [". $DevToolsVersion . "]");
 		} else{
 			/* Add Stylesheet on this output */
@@ -237,7 +252,7 @@ function CheckSettings() {
 		$PathToPlexMediaFolder = preg_replace("/\\\\/i", "/",file_get_contents($Server . "/utils/devtools?Func=GetLibPath&Secret=" . $DevToolsSecret)) . $AppendPathWith;
 		if($PathToPlexMediaFolder !== false) {
 			// Do a file_exists on the received path to verify it.
-			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Set PathToPlexMediaFolder to: '" . $PathToPlexMediaFolder ."'");
+			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Setting PathToPlexMediaFolder to: '" . $PathToPlexMediaFolder ."'");
 		} else {
 			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to get the path to Media folder: '" . $PathToPlexMediaFolder ."'");
 		}
@@ -259,7 +274,10 @@ function CheckSettings() {
 	return $ErrorOccured;	
 }
 
-
+/**
+ * Function for fetching the xmls.
+ * This function checks to see that the result is correct.
+ */
 function FetchXML ($url) {
 	global $Server, $Debug;
 	$ErrorOccured = false;
@@ -285,6 +303,9 @@ function FetchXML ($url) {
 	}
 }
 
+/**
+ * Log function.
+ */
 function USMLog ($Type, $Message, $Debugtrace = false) {
 	global $Logfile;
 	$Timestamp = date("y-m-d H:i:s");
@@ -310,9 +331,13 @@ function USMLog ($Type, $Message, $Debugtrace = false) {
 	fclose($fp);	
 }
 
+/**
+ * Checks to see if a file or folder exists using DevTools.
+ * This means the check is done with the permissions Plex has.
+ */
 function exists($Path) {
 	global $Server, $DevToolsSecret;
-
+	
 	if(strpos($Path,"file://")!==false) {
 		$Path = substr($Path,7);
 	}
@@ -324,6 +349,72 @@ function exists($Path) {
 		return $ReturnValue;
 	}
 }
+
+
+/**
+ * This function checks what headers are returned when quering a url. It then checks for the requested response code.
+ */
+function VerifyHeader($url,$response_code) {
+	$headers = get_headers($url);
+	if(strpos($headers[0],$response_code) === false) {
+		return false;
+	} else {
+		return true;
+	}
+}
 // check if com.plexapp.agents.opensubtitles.xml or com.plexapp.agents.podnapisi.xml exists in Hash/Contents/Subtitle Contributions/ if so, parse the hell out of it.
 // check if subtitle->name contains /sid- (atleast for opensubtitles. Check if this applies to podnapasi aswell)
+
+
+function CheckForDuplicates($CurrentVideo) {
+	global $SearchSubtitleProviderFiles, $PathToPlexMediaFolder;
+	//Check if there is duplicates according to .xml file in Subtitle Contributions.
+	$ProviderXMLSubtitles = array();
+	foreach ($SearchSubtitleProviderFiles as $Provider) {
+		$HashDirectory = substr($CurrentVideo->getHash(),0,1) . "/" . substr($CurrentVideo->getHash(),1) . ".bundle/Contents/Subtitle Contributions/" . $Provider;
+		if(exists($PathToPlexMediaFolder . $HashDirectory)) {
+			
+			$SubtitleProviderXML = FetchXML("/utils/devtools?Func=GetXMLFile&Secret=WebtoolPUSM&Path=".$PathToPlexMediaFolder . $HashDirectory);
+			foreach($SubtitleProviderXML as $SubtitleProvider) {
+				foreach($SubtitleProvider->Subtitle as $Sub) {
+					
+					if(strlen((string)$Sub->attributes()->name)>0) {
+						$PositionOfSid = stripos((string)$Sub->attributes()->name,"/sid");
+						
+						$InsertTo = count($ProviderXMLSubtitles);
+						if($PositionOfSid === false) {
+							
+							$ProviderXMLSubtitles[$InsertTo][0] = (string)$Sub->attributes()->name;
+						} else {
+							$name = substr((string)$Sub->attributes()->name,0,$PositionOfSid);
+							$ProviderXMLSubtitles[$InsertTo][0] = $name;
+						}
+						$ProviderXMLSubtitles[$InsertTo][1] = substr($Provider,0,-4) . "_" . (string)$Sub->attributes()->media;
+					}
+				
+				}
+				
+				
+
+			}
+		}
+	}
+	
+	for ($i=0; $i<count($ProviderXMLSubtitles);$i++) {
+		for ($x=0;$x<count($ProviderXMLSubtitles);$x++) {
+			if($i != $x) {
+				if ($ProviderXMLSubtitles[$i][0] == $ProviderXMLSubtitles[$x][0]) {
+					foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
+						foreach ($SubtitleLanguageArray as $Subtitle) {
+							if($ProviderXMLSubtitles[$i][1] == $Subtitle->getFilename()) {
+								$Subtitle->setIsDouble(true);
+							}
+						}
+					}
+					
+				}
+			}
+		}
+	}					
+}
 ?>
