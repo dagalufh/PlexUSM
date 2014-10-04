@@ -2,10 +2,41 @@
 /**
  * Define a class to be used for subtitles?
  */ 
+
+/**
+ * Class Video
+ * Holds information related to a unique video.
+ *
+ * @since V0.2
+ */
 class Video {
+	
+	/**
+	 * Holds the ID of the active subtitle in Plex.
+	 * @var int $ActiveSubtitle
+	 * $since V0.2
+	 */
 	private $ActiveSubtitle;
+	
+	/**
+	 * Holds all the subtitles associated to this video
+	 * @var array $ArraySubtitles
+	 * @since V0.2
+	 */ 
 	private $ArraySubtitles = array();
+	
+	/**
+	 * Holds the index of the episode. This is the number the episode has in the season.
+	 * @var int $EpisodeIndex
+	 * @since V0.2
+	 */ 
 	private $EpisodeIndex;
+  
+	/**
+	 * Holds the hash of the video. this is used for determening the path of the subtitles.
+  	 * @var string $Hash
+  	 * @since V0.2
+  	 */
 	private $Hash;
 	private $ID;
 	private $LibraryID;
@@ -171,6 +202,18 @@ class Subtitle {
 	private $Path;
 	private $Source;
 	private $IsLocal;
+	
+	/**
+	 * Holds if the subtitle is found to be a duplicate or not.
+	 */
+	 private $IsDouble;
+	
+	/**
+	* Controls if the subtitles should be shown or not.
+	* Default: false
+	* @since V0.5.2
+	*/
+	private $HideSubtitle;
 
 	function __construct($ID, $Filename, $Language,$Path,$Source, $IsLocal) {
 		$this->Filename = $Filename;
@@ -179,6 +222,8 @@ class Subtitle {
 		$this->Path = $Path;
 		$this->Source = $Source;
 		$this->IsLocal = $IsLocal;
+		$this->HideSubtitle = false;
+		$this->IsDouble = false;
 	}
 
 	public function getFilename() {
@@ -187,6 +232,10 @@ class Subtitle {
 	
 	public function getID() {
 		return $this->ID;
+	}
+	
+	public function getIsDouble() {
+		return $this->IsDouble;
 	}
 	
 	public function getIsLocal() {
@@ -200,9 +249,30 @@ class Subtitle {
 	public function getPath() {
 		return $this->Path;
 	}
+	
+	/**
+	 * Returns boolean true or false.
+	 * @since V0.5.2
+	 */
+	public function getHideSubtitle() {
+		return $this->HideSubtitle;
+	}
 
 	public function getSource() {
 		return $this->Source;	
+	}
+	
+	/**
+	 * Sets the value to control if it should be shown or not.
+	 * @param bool $Boolean true/false
+	 * @since V0.5.2
+	 */
+	public function setHideSubtitle($Boolean) {
+		$this->HideSubtitle = $Boolean;
+	}
+	
+	public function setIsDouble($Boolean) {
+		$this->IsDouble = $Boolean;
 	}
 }
 ?>
