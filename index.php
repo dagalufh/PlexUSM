@@ -5,6 +5,13 @@ $startarray = explode(" ", $starttime);
 $starttime = $startarray[1] + $startarray[0];
 /**
   * Changelog
+  * V0.5.2
+  * Added more rigid verification that DevTools is infact there.
+  * Corrected a bug with "Show only multiple subtitles/language" that caused it to hide entire video.
+  * Added some more comments.
+  * Added a new option: Autoselect duplicates based on XML. This goes through the providers xml file and searches for duplicates base on their name in the file.
+  *
+  * 
   * V0.5.1
   * Added Select / Deselect all to subtitlelists.
   * Changed requirements to DevTools v0.0.0.6 after implementing ShowSRT function that uses DevTools to read the file.
@@ -49,7 +56,7 @@ $starttime = $startarray[1] + $startarray[0];
 include("classes.php");
 include("settings.php");
 include("functions.php");
-$FolderCheck = CheckSettings();
+$SettingsVerification = CheckSettings();
 
 /**
  * Define some variables used.
@@ -74,6 +81,8 @@ if(!isset($_SESSION['Option_HideLocal']['set'])) {
 	$_SESSION['Option_HideLocal']['checked'] = "";
 	$_SESSION['Option_MultipleSubtitlesOnly']['set'] = false;
 	$_SESSION['Option_MultipleSubtitlesOnly']['checked'] = "";
+	$_SESSION['Option_AutoCheck']['set'] = false;
+	$_SESSION['Option_AutoCheck']['checked'] = "";		
 	$_SESSION['Option_HideEmpty']['set'] = false;
 	$_SESSION['Option_HideEmpty']['checked'] = "";		
 	$_SESSION['Option_HideID']['set'] = true;
@@ -92,6 +101,14 @@ if(isset($_POST['SaveOptions'])) {
 		$_SESSION['Option_MultipleSubtitlesOnly']['set'] = false;
 		$_SESSION['Option_MultipleSubtitlesOnly']['checked'] = "";		
 	}
+	
+	if(isset($_POST['AutoCheck'])) {
+		$_SESSION['Option_AutoCheck']['set'] = true;
+		$_SESSION['Option_AutoCheck']['checked'] = "checked";
+	} else {
+		$_SESSION['Option_AutoCheck']['set'] = false;
+		$_SESSION['Option_AutoCheck']['checked'] = "";		
+	}	
 
 	if(isset($_POST['HideLocal'])) {
 		$_SESSION['Option_HideLocal']['set'] = true;
@@ -172,7 +189,7 @@ if( (isset($_GET['ParentKey'])) and (strlen($_GET['ParentKey'])>18) ) {
 /**
  *
  */
-if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
+if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVerification)) {
 
 	if( (isset($ShowKey)) and (!isset($ParentKey)) )  {
 		get_show_seasons($ShowKey);	
@@ -274,7 +291,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 							
 							if(isset($subtitle->attributes()->url)) {
 								$LocalSubtitle = false;
-								$Folder = SepFilename(preg_replace("/\\\\/i", "/", $subtitle->attributes()->url));
+								$Folder = SepFilename($subtitle->attributes()->url);
 
 								// Subtitles - All of them
 								
@@ -294,6 +311,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 								}
 
 							} else {
+								$LocalSubtitle = true;
 								if($_SESSION['Option_HideIntegrated']['set']  === false) {
 									$CurrentVideo->setNewSubtitle(new Subtitle($subtitle->attributes()->id, "Integrated subtitle", $Language,  false, $subtitle->attributes()->codec, $LocalSubtitle));	
 								}
@@ -301,31 +319,19 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 						}
 					}
 					
-					/** Check if there is duplicates according to .xml file in Subtitle Contributions.
+					CheckForDuplicates($CurrentVideo);
 					
-					foreach ($SearchSubtitleProviderFiles as $Provider) {
-						$HashDirectory = substr($CurrentVideo->getHash(),0,1) . "/" . substr($CurrentVideo->getHash(),1) . ".bundle/Contents/Subtitle Contributions/" . $Provider;
-						if(file_exists($PathToPlexMediaFolder . $HashDirectory)) {
-							//echo "Exists(URL: " . $PathToPlexMediaFolder . $HashDirectory . ")<br>";
-							$SubtitleProviderXML = simplexml_load_file($PathToPlexMediaFolder . $HashDirectory);
-							foreach($SubtitleProviderXML as $SubtitleProvider) {
-								foreach($SubtitleProvider->Subtitle as $Sub) {
-									echo $Sub->attributes()->name;
-
-									echo "<br>";
+					if ($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) {
+						$AddVideo = false;
+						foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
+							if (count($SubtitleLanguageArray)<2) {
+								/* Current language has less than 2 subtitles */
+								foreach ($SubtitleLanguageArray as $Subtitle) {
+									$Subtitle->setHideSubtitle(true);
 								}
-								//echo $SubtitleProvider->Subtitle->attributes()->media;
-								
-
+							} else {
+								$AddVideo = true;
 							}
-							echo "<br>";echo "<br>";
-						}
-					}
-					*/
-
-					foreach ($CurrentVideo->getSubtitles() as $SubtitleLanguageArray) {
-						if(($_SESSION['Option_MultipleSubtitlesOnly']['set'] === true) and (count($SubtitleLanguageArray)<2)) {
-							$AddVideo = false;	
 						}
 					}
 
@@ -345,10 +351,12 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){
 	usort($ArrayVideos,"SortVideos");
 }
 
+
+
 /**
  * Build the menu to be shown at the top
  */	 
-if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)) {
+if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVerification)) {
 	$count = count($ArrayVideos);
 	$PageNr = 1;
 	if($count>$_SESSION['Option_ItemsPerPage']['value']) {
@@ -426,28 +434,28 @@ echo "<div class='VideoBox'>";
 echo "<div class='VideoHeadline'>Libraries</div>";
 echo "<div class='VideoSubtitle'>";
 echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
-
-$xml = FetchXML('/library/sections');
-foreach($xml as $xmlrow) {
-	$Section = $xmlrow->attributes();	
-	if($Debug) {
-		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Value in Section-variable: \n" . var_export($Section,true) . "\n");
+if(!$SettingsVerification) {
+	$xml = FetchXML('/library/sections');
+	foreach($xml as $xmlrow) {
+		$Section = $xmlrow->attributes();	
+		if($Debug) {
+			USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Value in Section-variable: \n" . var_export($Section,true) . "\n");
+		}
+		$LibraryName = $Section->title;
+		if($Section->key == $CurrentLibraryID) {
+			$CurrentLibraryName = $Section->title;
+			$LibraryName = "<b>" . $Section->title . "</b>";
+		}
+		echo "<tr class='hovering'>";
+		echo "<td class='mainText'><a href='?libraryID=".$Section->key."&startLimit=0'>".$LibraryName."</a></td></tr>";
 	}
-	$LibraryName = $Section->title;
-	if($Section->key == $CurrentLibraryID) {
-		$CurrentLibraryName = $Section->title;
-		$LibraryName = "<b>" . $Section->title . "</b>";
-	}
-	echo "<tr class='hovering'>";
-	echo "<td class='mainText'><a href='?libraryID=".$Section->key."&startLimit=0'>".$LibraryName."</a></td></tr>";
-
 }
 echo "</table>";
 	echo "</div>";
 	echo "</div>";
 
 
-if($CurrentLibraryID !== false) {
+if ( ($CurrentLibraryID !== false) and (!$SettingsVerification) ) {
 	echo "<form name='searchForm' method='GET' action=''>";
 	echo "<div class='VideoBox'>";	
 	echo "<div class='VideoHeadline'>Search: ".$CurrentLibraryName."</div>";
@@ -474,6 +482,7 @@ echo "<tr><td class='mainText'><input type='checkbox' name='HideLocal' ".$_SESSI
 echo "<tr><td class='mainText'><input type='checkbox' name='HideEmpty' ".$_SESSION['Option_HideEmpty']['checked'].">Hide videos without subtitles</td></tr>";	
 echo "<tr><td class='mainText'><input type='checkbox' name='HideIntegrated' ".$_SESSION['Option_HideIntegrated']['checked'].">Hide integrated subtitles</td></tr>";
 echo "<tr><td class='mainText'><input type='checkbox' name='OnlyMultiple' ".$_SESSION['Option_MultipleSubtitlesOnly']['checked'].">Show only multiple subtitles/language</td></tr>";
+echo "<tr><td class='mainText'><input type='checkbox' name='AutoCheck' ".$_SESSION['Option_AutoCheck']['checked'].">Autoselect duplicates based on XML</td></tr>";
 echo "<tr><td class='mainText'><input type='text' size='2' name='ItemsPerPage' value='".$_SESSION['Option_ItemsPerPage']['value']."'>Items per page</td></tr>";
 echo "<tr><td class='mainText'><input type='submit' name='SaveOptions' value='Save'></td></tr>";
 echo "</table>";
@@ -487,7 +496,7 @@ echo "<br>";
 				<div id="PageBar" class="headline"><?php echo $MenuItem?></div>
 				<div id="MainBox">
 					<?php	
-						if( (isset($_GET['libraryID'])) and ($ErrorOccured === false)){	
+						if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVerification) ){	
 						/*
 						* For each item in the ArrayVideos array.. check if we reached the max limit for items per page.
 						*/
@@ -522,6 +531,7 @@ echo "<br>";
 										$View = "";
 										$Checkbox = "";
 										$Exists = "";
+										$IsChecked = "";
 										$AddClass = false;
 
 										if(strlen($Subtitle->getLanguage())>0) {
@@ -533,26 +543,35 @@ echo "<br>";
 											$Active = "Selected subtitle in Plex";
 											$AddClass = "Active";
 										}
+										
+										if( ($Subtitle->getIsDouble()) and ($_SESSION['Option_AutoCheck']['set']) ){
+											$IsChecked = "checked";	
+										}
 
 										if($Subtitle->getPath() !== false) {
 											$View = "<a target=\"_NEW\" href=\"ReadFile.php?FileToOpen=".$Subtitle->getPath()."\">View</a> ";
-											$Checkbox = "<input type='checkbox' name='Subtitle[]' value=\"".$Subtitle->getPath()."\">";	
+											$Checkbox = "<input type='checkbox' name='Subtitle[]' ". $IsChecked ." value=\"".$Subtitle->getPath()."\">";	
+										}
+										if($Subtitle->getPath() !== false) {
+											if(exists($Subtitle->getPath()) === false) {
+												USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find '" . $Subtitle->getPath()."' on disk.");
+												$Exists = "Not found on disk. Please update Plex library.";
+												$Checkbox = "";
+												$View = "";
+												$AddClass = "Removed";
+											}
 										}
 										
-										if( (exists($Subtitle->getPath()) === false) and ($Subtitle->getPath() !== false) ) {
-											USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find '" . $Subtitle->getPath()."' on disk.");
-											$Exists = "Not found on disk. Please update Plex library.";
-											$Checkbox = "";
-											$View = "";
-											$AddClass = "Removed";
+									
+										
+										if(!$Subtitle->getHideSubtitle()) {
+											echo "<div class='VideoSubtitle hovering " . $AddClass . "'>";
+											echo "<table class='Max' cellspacing=0 cellpadding=0><tr><td class='small'>" . $Checkbox . "</td><td class='small'>" . $Subtitle->getSource() . "</td><td class='small'>" .$Language ."</td><td>". $Subtitle->getFilename() . "</td><td class='small'>" . $View . "</td></tr>";
+											if ($AddClass !== false) {
+												echo "<tr><td></td><td></td><td></td><td>Message: " . $Active . $Exists . "</td></tr>";
+											}
+											echo "</table></div>";
 										}
-
-										echo "<div class='VideoSubtitle hovering " . $AddClass . "'>";
-										echo "<table class='Max' cellspacing=0 cellpadding=0><tr><td class='small'>" . $Checkbox . "</td><td class='small'>" . $Subtitle->getSource() . "</td><td class='small'>" .$Language ."</td><td>". $Subtitle->getFilename() . "</td><td class='small'>" . $View . "</td></tr>";
-										if ($AddClass !== false) {
-											echo "<tr><td></td><td></td><td></td><td>Message: " . $Active . $Exists . "</td></tr>";
-										}
-										echo "</table></div>";
 									}
 								}
 								echo "</form>";
@@ -600,10 +619,10 @@ if($Debug) {
 	echo "</div>";
 }
 
-if(count($_SESSION['Log']['error'])>0) {				
+if( (isset($_SESSION['Log']['error'])) and (count($_SESSION['Log']['error'])>0) ) {				
 	echo "<div class='VideoBox'>";	
 	echo "<div class='VideoHeadline'>Errorlog</div>";
-	echo "<div class='VideoSubtitle'>";
+	echo "<div class='VideoSubtitle Error'>";
 	foreach($_SESSION['Log']['error'] as $LogEntry) {
 		echo nl2br($LogEntry) . "<br>";
 	}
