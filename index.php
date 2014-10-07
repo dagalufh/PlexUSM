@@ -4,28 +4,37 @@ $starttime = microtime();
 $startarray = explode(" ", $starttime);
 $starttime = $startarray[1] + $startarray[0];
 /**
-  * Changelog
-  * V0.5.2
-  * Added more rigid verification that DevTools is infact there.
-  * Corrected a bug with "Show only multiple subtitles/language" that caused it to hide entire video.
-  * Added some more comments.
-  * Added a new option: Autoselect duplicates based on XML. This goes through the providers xml file and searches for duplicates base on their name in the file.
-  *
-  * 
-  * V0.5.1
-  * Added Select / Deselect all to subtitlelists.
-  * Changed requirements to DevTools v0.0.0.6 after implementing ShowSRT function that uses DevTools to read the file.
-  * Removed "ListDir.php" as it's not needed anymore.
-  * Modified "ReadFile.php" to fetch the file to be viewed from DevTools instead of accessing it directly to make it work on linux etc.
-  *
-  * V0.5.0
-  * Moved away from features that required PHP to have access to other places on your harddrive.
-  * These features are handled by DevTools from now on. (Deletion of files, file exists)
-  * Currently requires DevTools v.0.0.0.5 made by Dane22 on the Plex Forums
-  * Modified the settings.php do reflect this change. Now only contains 3 settings that a user should fiddle with.
-  * Continued in making the presentation better.
-  * Improved the logging and presentation of the same.
-  *
+ * Created by Mikael Aspehed (dagalufh on PlexForums)
+ * With assistance from Dane22 on PlexForums and his plugin DevTools
+ * 
+ * Changelog
+ * V0.5.3
+ * Changed requirements to 0.0.0.7 of DevTools
+ * Changed subtitle removal function to DelSRT of DevTools.
+ * Changed recommended way of usage.
+ * Cleaned up some variables that were unused.
+ * 
+ * V0.5.2
+ * Added more rigid verification that DevTools is infact there.
+ * Corrected a bug with "Show only multiple subtitles/language" that caused it to hide entire video.
+ * Added some more comments.
+ * Added a new option: Autoselect duplicates based on XML. This goes through the providers xml file and searches for duplicates base on their name in the file.
+ *
+ * 
+ * V0.5.1
+ * Added Select / Deselect all to subtitlelists.
+ * Changed requirements to DevTools v0.0.0.6 after implementing ShowSRT function that uses DevTools to read the file.
+ * Removed "ListDir.php" as it's not needed anymore.
+ * Modified "ReadFile.php" to fetch the file to be viewed from DevTools instead of accessing it directly to make it work on linux etc.
+ *
+ * V0.5.0
+ * Moved away from features that required PHP to have access to other places on your harddrive.
+ * These features are handled by DevTools from now on. (Deletion of files, file exists)
+ * Currently requires DevTools v.0.0.0.5 made by Dane22 on the Plex Forums
+ * Modified the settings.php do reflect this change. Now only contains 3 settings that a user should fiddle with.
+ * Continued in making the presentation better.
+ * Improved the logging and presentation of the same.
+ *
  * V0.4.2
  * Added some logging
  * Corrected in Settings.php to append with localhost, with a lowercase "l".
@@ -56,6 +65,10 @@ $starttime = $startarray[1] + $startarray[0];
 include("classes.php");
 include("settings.php");
 include("functions.php");
+
+/**
+ * Check settings to verify all is correct
+ */ 
 $SettingsVerification = CheckSettings();
 
 /**
@@ -64,8 +77,7 @@ $SettingsVerification = CheckSettings();
 $ArrayVideos = array();
 $showID = false;
 $Searchstring = "";
-$showID_additionalquery = "parent_id is null";
-$MenuItem = "";
+$MenuItem = ""; // Holds the available pages output
 $CurrentLibraryID = false;
 $CurrentLibraryName = "";
 $ErrorOccured = false;
@@ -189,7 +201,7 @@ if( (isset($_GET['ParentKey'])) and (strlen($_GET['ParentKey'])>18) ) {
 /**
  *
  */
-if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVerification)) {
+if( ($CurrentLibraryID !== false) and ($ErrorOccured === false) and (!$SettingsVerification)) {
 
 	if( (isset($ShowKey)) and (!isset($ParentKey)) )  {
 		get_show_seasons($ShowKey);	
@@ -239,7 +251,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVer
 
 				} else {
 					$CurrentVideo = new Video($xmlrowsub['key'],$xmlrowsub['title']);
-					$CurrentVideo->setLibraryID($_GET['libraryID']);
+					$CurrentVideo->setLibraryID($CurrentLibraryID);
 					$CurrentVideo->setType($xmlrowsub['type']);
 					$CurrentVideo->setActiveSubtitle(0);
 					$ArrayVideos[] = $CurrentVideo;	
@@ -273,7 +285,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVer
 					}
 
 
-					$CurrentVideo->setLibraryID($_GET['libraryID']);
+					$CurrentVideo->setLibraryID($CurrentLibraryID);
 					$CurrentVideo->setType($xmlrowsub['type']);
 					$CurrentVideo->setEpisodeIndex(0);
 
@@ -356,7 +368,7 @@ if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVer
 /**
  * Build the menu to be shown at the top
  */	 
-if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVerification)) {
+if( ($CurrentLibraryID !== false) and ($ErrorOccured === false) and (!$SettingsVerification)) {
 	$count = count($ArrayVideos);
 	$PageNr = 1;
 	if($count>$_SESSION['Option_ItemsPerPage']['value']) {
@@ -496,7 +508,7 @@ echo "<br>";
 				<div id="PageBar" class="headline"><?php echo $MenuItem?></div>
 				<div id="MainBox">
 					<?php	
-						if( (isset($_GET['libraryID'])) and ($ErrorOccured === false) and (!$SettingsVerification) ){	
+						if( ($CurrentLibraryID !== false) and ($ErrorOccured === false) and (!$SettingsVerification) ){	
 						/*
 						* For each item in the ArrayVideos array.. check if we reached the max limit for items per page.
 						*/
@@ -510,7 +522,7 @@ echo "<br>";
 							echo "<div class='VideoBox'>";		
 
 							if($Video->getType() == "show"){
-								echo "<div class='VideoHeadline'><a href='index.php?libraryID=".$Video->getLibraryID()."&startLimit=0&ShowKey=".$Video->getID()."&ParentKey=".$Video->getParentID()."'>".$Video->getTitle()."</a></div>";
+								echo "<div class='VideoHeadline'><a href='index.php?libraryID=".$CurrentLibraryID."&startLimit=0&ShowKey=".$Video->getID()."&ParentKey=".$Video->getParentID()."'>".$Video->getTitle()."</a></div>";
 							} else {
 
 								echo "<form id='Form_".(string)$Video->getID()."' name='Form_".(string)$Video->getID()."' method='POST' target='WorkFrame'>";
@@ -522,10 +534,13 @@ echo "<br>";
 								echo "<div class='VideoPath'>".$Video->getPath()."</div>";
 								
 								/**
-								 * Print out subtitles if it's not a librarytype 2.
+								 * Print out subtitles if it's not a show.
 								 */ 
 								foreach ($Video->getSubtitles() as $SubtitleLanguageArray) {	
 									foreach ($SubtitleLanguageArray as $Subtitle) {
+										/**
+										 * Define default for each subtitle
+										 */ 
 										$Language = "";
 										$Active = "";
 										$View = "";
@@ -550,7 +565,8 @@ echo "<br>";
 
 										if($Subtitle->getPath() !== false) {
 											$View = "<a target=\"_NEW\" href=\"ReadFile.php?FileToOpen=".$Subtitle->getPath()."\">View</a> ";
-											$Checkbox = "<input type='checkbox' name='Subtitle[]' ". $IsChecked ." value=\"".$Subtitle->getPath()."\">";	
+											//$Checkbox = "<input type='checkbox' name='Subtitle[]' ". $IsChecked ." value=\"".$Subtitle->getPath()."\">";
+											$Checkbox = "<input type='checkbox' name='Subtitle[]' ". $IsChecked ." value=\"".$Video->getID() . ":" . $Subtitle->getID().":" . $Subtitle->getFilename() ."\">";
 										}
 										if($Subtitle->getPath() !== false) {
 											if(exists($Subtitle->getPath()) === false) {
@@ -597,16 +613,18 @@ echo "<br>";
 						echo "<li>Options for output.</li>";
 						echo "</ul>";
 						echo "</td></tr>";
-						echo "<tr class='headline'><td>Recommended usage</td></tr>";
+						echo "</table>";
+						echo "</div></div>";
+						echo "<div class='VideoBox'>";	
+						echo "<div class='VideoHeadline'>Recommended usage</div>";
+						echo "<div class='VideoSubtitle'>";
+						echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
 						echo "<tr><td class='mainText'>";
-						echo "1. Disable the subtitles agents<br>";
-						echo "2. Remove the subtitles you want via this script.<br>";
-						echo "3. Go to the movies you altered and update them, searching for new metadata.<br>";
-						echo "4. Re-enable subtitle agents if you want. You should now have a cleaner list of subtitles.";
+						echo "1. Remove the subtitles you want via this script.<br>";
+						echo "2. Do a forced refresh on Section level. Do not do this on video level. It will take a while for it to rescan everything if you have a large section. But the subtitle will be removed.";
 						echo "</td></tr>";
 						echo "</table>";
-						echo "</div>";
-						echo "</div>";
+						echo "</div></div>";
 					}
 if($Debug) {
 	echo "<div class='VideoBox'>";	

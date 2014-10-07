@@ -38,25 +38,114 @@ class Video {
   	 * @since V0.2
   	 */
 	private $Hash;
+	
+	/**
+	 * Holds the key of the video. 
+	 * @var string $ID
+	 * @since V0.2
+	 */
 	private $ID;
+	
+	/**
+	 * Hold the ID of the section the video belongs to
+	 * @var int $LibraryID
+	 * @since V0.2
+	 */ 
 	private $LibraryID;
-	private $LibraryType;
+		
+	/**
+	 * Holds the amount of childs for the video. This is used for shows and seasons.
+	 * @var int $NumberOfChilds
+	 * @since V0.2
+	 * @Deprecrated
+	 */ 
 	private $NumberOfChilds;
+	
+	/**
+	 * Holds the Key of the parent.
+	 * @var string $ParentID
+	 * @since V0.2
+	 */  
 	private $ParentID;
+	
+	/**
+	 * Holds the path to the videofile
+	 * @var string $Path
+	 * @since V0.2
+	 */
 	private $Path;
+	
+	/**
+	 * Holds the ratingKey of the video. 
+	 * Used for sorting eposides and seasons correctly for searching and listing.
+	 * @var string $Key
+	 * @since V0.2
+	 */	
 	private $RatingKey;
+	
+	/**
+	 * Holds the index of the season, this is the season number
+	 * @var int $SeasonIndex
+	 * @since V0.2
+	 */ 
 	private $SeasonIndex;
+	
+	/**
+	 * Holds the key of the season
+	 * @var string $SeasonKey
+	 * @since V0.2
+	 */ 
 	private $SeasonKey;
+	
+	/**
+	 * Holds the key of the show that the video belongs to
+	 * @var string $ShowKey
+	 * @since V0.2
+	 */ 
 	private $ShowKey;
-	private $Title; 	 	
+	
+	/**
+	 * Holds the title of the video/show/season
+	 * @var string $Title
+	 * @since V0.2
+	 */ 
+	private $Title; 
+	
+	/**
+	 * Holds the title of the show the video belongs to
+	 * @var string $TitleShow
+	 * @since V0.2
+	 */ 
 	private $TitleShow;
+	
+	/**
+	 * Holds the title of the season the video belongs to
+	 * @var string $TitleSeason
+	 * @since V0.2
+	 */ 	
 	private $TitleSeason;
+	
+	/**
+	 * Holds the type of video. Movie, show, episode, season.
+	 * @var string $Type
+	 * @since V0.2
+	 */ 
 	private $Type;
 	
-	function __construct($ID,$Title) {
+	/**
+	 * The construct takes the key and title of the video/show/season
+	 * @var string $ID
+	 * @var string $Title
+	 * @since V0.2
+	 */ 
+	function __construct($ID, $Title) {
 		$this->ID = $ID;
 		$this->Title = $Title;
 	}
+	
+	/***************************************************************************************************************
+	 * GET - Functions
+	 ***************************************************************************************************************/	
 
 	public function getActiveSubtitle() {
 		return $this->ActiveSubtitle;
@@ -78,13 +167,12 @@ class Video {
 		return $this->LibraryID;	
 	}
 
-	public function getLibraryType() {
-		return $this->LibraryType;	
-	}
-
+	/**
+	 * @Deprecated
 	public function getNumberOfChilds() {
 		return $this->NumberOfChilds;	
 	}
+	*/
 
 	public function getPath() {
 		return $this->Path;	
@@ -130,7 +218,9 @@ class Video {
 		return $this->Type;
 	}
 
-	// Set-functions
+	/***************************************************************************************************************
+	 * SET - Functions
+	 ***************************************************************************************************************/
 	public function setActiveSubtitle($SubtitleID) {
 		$this->ActiveSubtitle = $SubtitleID;
 	}
@@ -146,17 +236,16 @@ class Video {
 		$this->LibraryID = $LibraryID;
 	}
 
-	public function setLibraryType($LibraryType) {
-		$this->LibraryType = $LibraryType;
-	}
-
 	public function setNewSubtitle($Subtitle) {
 		$this->ArraySubtitles[(string)$Subtitle->getLanguage()][] = $Subtitle;
 	}
 
+	/**
+	 * @Deprecated
 	public function setNumberOfChilds($NumberOfChilds) {
 		$this->NumberOfChilds = $NumberOfChilds;	
 	}
+	*/
 
 	public function setPath ($Path) {
 		$this->Path = $Path;

@@ -40,7 +40,7 @@ function SortVideos( $a, $b ) {
  * It then populates the globally used $ArrayVideos with the found season.
  */
 function get_show_seasons($ShowKey) {
-	global $Server, $ArrayVideos;
+	global $Server, $ArrayVideos, $CurrentLibraryID;
 	
 	$xmlsub = FetchXML($ShowKey . '/all');
 	foreach($xmlsub as $xmlrowsub) {
@@ -49,7 +49,7 @@ function get_show_seasons($ShowKey) {
 		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found season: '" . $Season->title ."'");
 		$CurrentVideo->setType("show");
 		$CurrentVideo->setParentID($ShowKey);
-		$CurrentVideo->setLibraryID($_GET['libraryID']);
+		$CurrentVideo->setLibraryID($CurrentLibraryID);
 		$CurrentVideo->setEpisodeIndex(0);
 		$ArrayVideos[] = $CurrentVideo;	
 	}
@@ -70,7 +70,7 @@ function get_show_episodes($ShowKey, $SeasonIndex = false, $ShowRatingKey = "", 
 		$Episode = $xmlrowsub->attributes();
 		USMLog("debug", "[". __FILE__ ." Line:" . __LINE__ . "] Found episode: '" . $Episode->title ."'");
 		
-		$CurrentVideo = new Video($Episode->key,$Episode->title);
+		$CurrentVideo = new Video($Episode->ratingKey,$Episode->title);
 		$CurrentVideo->setType("movie");
 		$CurrentVideo->setEpisodeIndex($Episode->index);
 		

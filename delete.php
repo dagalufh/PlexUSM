@@ -16,54 +16,17 @@ if( (count($_POST['Subtitle']) == "0") or (!isset($_POST['Subtitle'])) ) {
 	USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Subtitle POST empty.\n");
 } else {
 	foreach ($_POST['Subtitle'] as $Subtitle) {
+	
+		list($MediaID,$SubtitleID,$Filename) = explode(":",$Subtitle);
 		
+		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Request to delete SubtitleID(".$SubtitleID.") belonging to MovieID(".$MediaID.") with Filename(".$Filename.").");
 		
-		$CorrectedFilename = preg_replace("/ /", "%20", $Subtitle);
-		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Received request to delete file: " . $CorrectedFilename);
-
-			if(exists($CorrectedFilename) !== false) {
-				
-				if(strpos($CorrectedFilename,"file://")!==false) {
-					$CorrectedFilename = substr($CorrectedFilename,7);
-					if(exists($CorrectedFilename) !== false) {
-						$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=DelFile&Secret=" . $DevToolsSecret . "&File=".$CorrectedFilename);
-						if($ReturnValue == "ok") {
-							USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully deleted file: " . $CorrectedFilename);
-						} else {
-							USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Failed deleting file: " . $CorrectedFilename . " Returnvalue: " . $ReturnValue);
-						}
-					}
-				} else {
-					/**
-					 * Copy the string with the supplied filename if it's an agent. Then modify it with new pathing.
-					 */
-					$SecondaryDelete = $CorrectedFilename;
-					$Filename = substr($SecondaryDelete,strripos($SecondaryDelete,"/")+1);
-					$SecondaryDelete = substr($SecondaryDelete,0,strripos($SecondaryDelete,"/")+1);
-					$Filename = explode("_",$Filename);
-					$SecondaryDelete = preg_replace("/\/Subtitles\//","/Subtitle%20Contributions/".$Filename[0]."/", $SecondaryDelete);
-					$SecondaryDelete .= $Filename[1];
-					if(exists($SecondaryDelete) !== false) {
-						$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=DelFile&Secret=" . $DevToolsSecret . "&File=".$SecondaryDelete);
-						if($ReturnValue == "ok") {
-							USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully deleted file: " . $SecondaryDelete);
-							if(exists($CorrectedFilename) !== false) {
-								$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=DelFile&Secret=" . $DevToolsSecret . "&File=".$CorrectedFilename);
-								if($ReturnValue == "ok") {
-									USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully deleted file: " . $CorrectedFilename);
-								} else {
-									USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Failed deleting file: " . $CorrectedFilename . " Returnvalue: " . $ReturnValue);
-								}
-							}
-						} else {
-							USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Failed deleting file: " . $SecondaryDelete . " Returnvalue: " . $ReturnValue);
-						}
-					}
-				}
-			} else {
-				USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Unable to find the file for deletion: " . $CorrectedFilename . "\n");
-			}
-		//}
+		$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=DelSRT&Secret=" . $DevToolsSecret . "&MediaID=".$MediaID . "&SrtFileID=".$SubtitleID);
+		if($ReturnValue == "ok") {
+			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully deleted subtitle: " . $Filename);
+		} else {
+			USMLog("error", "[". __FILE__ ." Line:" . __LINE__ . "] Failed deleting subtitle: " . $Filename . " Returnvalue: " . $ReturnValue);
+		}
 	}
 }
 

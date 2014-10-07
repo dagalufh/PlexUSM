@@ -26,7 +26,7 @@ A:Active {color: #FFFFFF; text-decoration: underline;}
 .hiddenframe {display: none;}
 .EditText {width: 100%; height: 700px; overflow: scroll; box-sizing: border-box;}
 #Box {height: 500px;  min-width: 1200px;}
-#MainBox {min-width: 850px; width: 100%; padding-top: 5px;}
+#MainBox {min-width: 850px; width: 100%; padding-top: 5px;padding-left: 2px;}
 #MenuBox {width: 200px; padding-top: 5px;}
 
 #MenuBar {width: 200px; height: 20px;}
