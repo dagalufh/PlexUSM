@@ -8,6 +8,12 @@ $starttime = $startarray[1] + $startarray[0];
  * With assistance from Dane22 on PlexForums and his plugin DevTools
  * 
  * Changelog
+ * 
+ * V0.5.4
+ * Changed requirements to 0.0.0.8 of DevTools
+ * Changed DelSRT to DelSub in DevTools to use current API.
+ * Added force refresh link to top of page when listing section.
+ *  
  * V0.5.3
  * Changed requirements to 0.0.0.7 of DevTools
  * Changed subtitle removal function to DelSRT of DevTools.
@@ -369,6 +375,7 @@ if( ($CurrentLibraryID !== false) and ($ErrorOccured === false) and (!$SettingsV
  * Build the menu to be shown at the top
  */	 
 if( ($CurrentLibraryID !== false) and ($ErrorOccured === false) and (!$SettingsVerification)) {
+	$RefreshLink = "<a target='WorkFrame' href='refresh.php?LibraryID=".$CurrentLibraryID."'>Refresh Section in Plex</a>";
 	$count = count($ArrayVideos);
 	$PageNr = 1;
 	if($count>$_SESSION['Option_ItemsPerPage']['value']) {
@@ -505,7 +512,7 @@ echo "<br>";
 					?>
 				</div>
 				</td><td class="BoxTable_td">
-				<div id="PageBar" class="headline"><?php echo $MenuItem?></div>
+				<div id="PageBar" class="headline"><table cellpadding="0" cellspacing="0" width="100%"><tr><td><?php echo $MenuItem?></td><td class="Right"><?php echo $RefreshLink?></td></tr></table></div>
 				<div id="MainBox">
 					<?php	
 						if( ($CurrentLibraryID !== false) and ($ErrorOccured === false) and (!$SettingsVerification) ){	
@@ -606,11 +613,12 @@ echo "<br>";
 						echo "<b>Usage is on your own risk!</b><br><br>";
 						echo "Current features:<br>";
 						echo "<ul>";
-						echo "<li>List all subtitles for a movie/tv show in your library. Both local (next to the movie in it's folder or one subfolder) and in the c:\users appdata folder.</li>";
+						echo "<li>List all subtitles for a movie/tv show in your library. Both local and those downloaded by agents.</li>";
 						echo "<li>View the subtitle and see it's contents to determine what to delete.</li>";
 						echo "<li>Delete selected subtitle from the harddrive.</li>";
 						echo "<li>Search for videos.</li>";
 						echo "<li>Options for output.</li>";
+						echo "<li>Highlighting active subtitle.</li>";
 						echo "</ul>";
 						echo "</td></tr>";
 						echo "</table>";
@@ -620,8 +628,10 @@ echo "<br>";
 						echo "<div class='VideoSubtitle'>";
 						echo "<table cellspacing=0 cellpadding=0 style='width: 100%'>";
 						echo "<tr><td class='mainText'>";
-						echo "1. Remove the subtitles you want via this script.<br>";
-						echo "2. Do a forced refresh on Section level. Do not do this on video level. It will take a while for it to rescan everything if you have a large section. But the subtitle will be removed.";
+						echo "<ol>";
+						echo "<li>Remove the subtitles you want via this script.</li>";
+						echo "<li>Do a forced refresh on Section level. Do not do this on video level. It will take a while for it to rescan everything if you have a large section. But the subtitle will be removed.</li>";
+						echo "</ol>";
 						echo "</td></tr>";
 						echo "</table>";
 						echo "</div></div>";

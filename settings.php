@@ -17,7 +17,7 @@ $ItemsPerPage = 5;
  */
 $PathToPlexMediaFolder = "";
 $AppendPathWith = "/Media/localhost/";
-$CorrectDevToolsVersion = "0.0.0.7";
+$CorrectDevToolsVersion = "0.0.0.8";
 $Logfile = "plexusmerror.log";
 $LogArray = array();
 $Debug = false; // use this to force detailed logging.

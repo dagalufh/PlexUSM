@@ -367,14 +367,14 @@ function VerifyHeader($url,$response_code) {
 
 
 function CheckForDuplicates($CurrentVideo) {
-	global $SearchSubtitleProviderFiles, $PathToPlexMediaFolder;
+	global $SearchSubtitleProviderFiles, $PathToPlexMediaFolder, $DevToolsSecret;
 	//Check if there is duplicates according to .xml file in Subtitle Contributions.
 	$ProviderXMLSubtitles = array();
 	foreach ($SearchSubtitleProviderFiles as $Provider) {
 		$HashDirectory = substr($CurrentVideo->getHash(),0,1) . "/" . substr($CurrentVideo->getHash(),1) . ".bundle/Contents/Subtitle Contributions/" . $Provider;
 		if(exists($PathToPlexMediaFolder . $HashDirectory)) {
 			
-			$SubtitleProviderXML = FetchXML("/utils/devtools?Func=GetXMLFile&Secret=WebtoolPUSM&Path=".$PathToPlexMediaFolder . $HashDirectory);
+			$SubtitleProviderXML = FetchXML("/utils/devtools?Func=GetXMLFile&Secret=".$DevToolsSecret."&Path=".$PathToPlexMediaFolder . $HashDirectory);
 			foreach($SubtitleProviderXML as $SubtitleProvider) {
 				foreach($SubtitleProvider->Subtitle as $Sub) {
 					

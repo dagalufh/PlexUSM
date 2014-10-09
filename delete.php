@@ -19,9 +19,9 @@ if( (count($_POST['Subtitle']) == "0") or (!isset($_POST['Subtitle'])) ) {
 	
 		list($MediaID,$SubtitleID,$Filename) = explode(":",$Subtitle);
 		
-		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Request to delete SubtitleID(".$SubtitleID.") belonging to MovieID(".$MediaID.") with Filename(".$Filename.").");
+		USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Request to delete SubFileID(".$SubtitleID.") belonging to MediaID(".$MediaID.") with Filename(".$Filename.").");
 		
-		$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=DelSRT&Secret=" . $DevToolsSecret . "&MediaID=".$MediaID . "&SrtFileID=".$SubtitleID);
+		$ReturnValue = file_get_contents($Server . "/utils/devtools?Func=DelSub&Secret=" . $DevToolsSecret . "&MediaID=".$MediaID . "&SubFileID=".$SubtitleID);
 		if($ReturnValue == "ok") {
 			USMLog("info", "[". __FILE__ ." Line:" . __LINE__ . "] Successfully deleted subtitle: " . $Filename);
 		} else {
